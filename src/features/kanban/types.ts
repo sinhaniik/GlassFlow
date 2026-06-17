@@ -24,3 +24,10 @@ export const DEFAULT_COLUMNS: Column[] = [
   { id: 'in-progress', title: 'In Progress', accent: 'orange' },
   { id: 'done', title: 'Done', accent: 'mint' },
 ]
+
+export const ACCENT_COLORS: AccentColor[] = [
+  'pink',
+  'orange',
+  'purple',
+  'mint',
+]

@@ -1,0 +1,74 @@
+import { useEffect, useRef } from 'react'
+
+interface ConfirmDialogProps {
+  title: string
+  message: string
+  confirmLabel?: string
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = 'Delete',
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  const confirmRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    confirmRef.current?.focus()
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onCancel()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onCancel])
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Cancel"
+        className="absolute inset-0 bg-black/25 backdrop-blur-[2px]"
+        onClick={onCancel}
+      />
+      <div
+        role="alertdialog"
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-message"
+        className="glass relative w-full max-w-sm rounded-2xl p-6"
+      >
+        <h3
+          id="confirm-title"
+          className="text-base font-semibold text-text-primary"
+        >
+          {title}
+        </h3>
+        <p id="confirm-message" className="mt-2 text-sm text-text-secondary">
+          {message}
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="glass-subtle rounded-xl px-4 py-2 text-sm font-medium text-text-primary transition hover:opacity-80"
+          >
+            Cancel
+          </button>
+          <button
+            ref={confirmRef}
+            type="button"
+            onClick={onConfirm}
+            className="rounded-xl bg-accent-pink px-4 py-2 text-sm font-medium text-text-primary transition hover:opacity-90"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

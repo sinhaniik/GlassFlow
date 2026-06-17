@@ -14,9 +14,20 @@ import { TaskCard } from '../task/TaskCard'
 interface ColumnProps {
   column: ColumnType
   tasks: Task[]
+  inlineEditId: string | null
+  onOpenModal: (taskId: string) => void
+  onStartInlineEdit: (taskId: string) => void
+  onEndInlineEdit: () => void
 }
 
-export function Column({ column, tasks }: ColumnProps) {
+export function Column({
+  column,
+  tasks,
+  inlineEditId,
+  onOpenModal,
+  onStartInlineEdit,
+  onEndInlineEdit,
+}: ColumnProps) {
   const dispatch = useAppDispatch()
   const [title, setTitle] = useState('')
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
@@ -70,7 +81,18 @@ export function Column({ column, tasks }: ColumnProps) {
           {tasks.length === 0 ? (
             <EmptyState label="Drop tasks here or add one below" />
           ) : (
-            tasks.map((task) => <TaskCard key={task.id} task={task} />)
+            tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                isInlineEditing={inlineEditId === task.id}
+                onOpenModal={() => {
+                  if (inlineEditId !== task.id) onOpenModal(task.id)
+                }}
+                onStartInlineEdit={() => onStartInlineEdit(task.id)}
+                onEndInlineEdit={onEndInlineEdit}
+              />
+            ))
           )}
         </SortableContext>
       </div>
