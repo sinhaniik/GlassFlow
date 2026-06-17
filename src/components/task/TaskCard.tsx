@@ -105,7 +105,7 @@ export function TaskCard({
     >
       <article
         className={[
-          'task-card-body glass-subtle rounded-lg border-l-[3px] py-2 pl-3 pr-2',
+          'task-card-body glass-card rounded-lg border-l-[3px] py-2 pl-3 pr-2',
           accentClass[task.accent],
           isInlineEditing && 'task-card-body--full',
         ].join(' ')}

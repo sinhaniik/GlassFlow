@@ -33,14 +33,14 @@ export function ConfirmDialog({
       <button
         type="button"
         aria-label="Cancel"
-        className="absolute inset-0 bg-black/25 backdrop-blur-[2px]"
+        className="modal-backdrop absolute inset-0"
         onClick={onCancel}
       />
       <div
         role="alertdialog"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
-        className="glass relative w-full max-w-sm rounded-2xl p-6"
+        className="glass-elevated relative w-full max-w-sm rounded-2xl p-6"
       >
         <h3
           id="confirm-title"

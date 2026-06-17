@@ -29,10 +29,10 @@ export function createTask(
 }
 
 export const accentClass: Record<AccentColor, string> = {
-  pink: 'border-l-accent-pink bg-accent-pink/20',
-  orange: 'border-l-accent-orange bg-accent-orange/20',
-  purple: 'border-l-accent-purple bg-accent-purple/20',
-  mint: 'border-l-accent-mint bg-accent-mint/20',
+  pink: 'border-l-accent-pink bg-accent-pink/8',
+  orange: 'border-l-accent-orange bg-accent-orange/8',
+  purple: 'border-l-accent-purple bg-accent-purple/8',
+  mint: 'border-l-accent-mint bg-accent-mint/8',
 }
 
 export const accentRing: Record<AccentColor, string> = {

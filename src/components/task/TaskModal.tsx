@@ -72,13 +72,13 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
         <button
           type="button"
           aria-label="Close"
-          className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+          className="modal-backdrop absolute inset-0"
           onClick={onClose}
         />
         <div
           role="dialog"
           aria-labelledby="task-modal-title"
-          className="glass modal-enter relative w-full max-w-md rounded-2xl p-6"
+          className="glass-elevated modal-enter relative w-full max-w-md rounded-2xl p-6"
         >
           <h2
             id="task-modal-title"
@@ -100,7 +100,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSave()
                 }}
-                className="glass-subtle w-full rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none transition focus:ring-2 focus:ring-accent-purple/40"
+                className="glass-input w-full rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none transition"
               />
             </label>
 
@@ -114,7 +114,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 placeholder="Add notes or details…"
-                className="glass-subtle w-full resize-none rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition focus:ring-2 focus:ring-accent-purple/40"
+                className="glass-input w-full resize-none rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition"
               />
             </label>
 

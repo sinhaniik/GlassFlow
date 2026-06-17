@@ -10,7 +10,7 @@ export function TaskDateNotch({ createdAt }: TaskDateNotchProps) {
   return (
     <div
       className={[
-        'task-notch-card glass-subtle',
+        'task-notch-card glass-card',
         isToday ? 'task-notch-card--today' : 'task-notch-card--stale',
       ].join(' ')}
       title={`Created ${new Date(createdAt).toLocaleString()} · ${label}`}

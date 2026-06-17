@@ -75,7 +75,7 @@ export function Column({
             {column.title}
           </h2>
         </div>
-        <span className="glass-subtle rounded-full px-2.5 py-0.5 text-xs font-medium text-text-secondary">
+        <span className="glass-card rounded-full px-2.5 py-0.5 text-xs font-medium text-text-secondary">
           {tasks.length}
         </span>
       </header>
@@ -112,7 +112,7 @@ export function Column({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Add a task…"
           aria-label={`Add task to ${column.title}`}
-          className="glass-subtle w-full rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition focus:ring-2 focus:ring-accent-purple/40"
+          className="glass-input w-full rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition"
         />
       </form>
     </section>
