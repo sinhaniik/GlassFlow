@@ -8,6 +8,7 @@ export interface Task {
   description?: string
   columnId: ColumnId
   accent: AccentColor
+  order: number
   createdAt: string
   updatedAt: string
 }

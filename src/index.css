@@ -115,3 +115,23 @@ body {
       transparent
     );
 }
+
+.task-card-dragging {
+  opacity: 0.45;
+}
+
+.ring-accent-pink {
+  --tw-ring-color: var(--accent-pink);
+}
+
+.ring-accent-orange {
+  --tw-ring-color: var(--accent-orange);
+}
+
+.ring-accent-purple {
+  --tw-ring-color: var(--accent-purple);
+}
+
+.ring-accent-mint {
+  --tw-ring-color: var(--accent-mint);
+}
