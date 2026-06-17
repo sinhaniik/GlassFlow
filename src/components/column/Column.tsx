@@ -3,7 +3,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type RefObject } from 'react'
 import { useAppDispatch } from '../../app/hooks'
 import { addTask } from '../../features/kanban/kanbanSlice'
 import type { Column as ColumnType, Task } from '../../features/kanban/types'
@@ -15,6 +15,8 @@ interface ColumnProps {
   column: ColumnType
   tasks: Task[]
   inlineEditId: string | null
+  isDropTarget?: boolean
+  inputRef?: RefObject<HTMLInputElement | null>
   onOpenModal: (taskId: string) => void
   onStartInlineEdit: (taskId: string) => void
   onEndInlineEdit: () => void
@@ -24,6 +26,8 @@ export function Column({
   column,
   tasks,
   inlineEditId,
+  isDropTarget = false,
+  inputRef,
   onOpenModal,
   onStartInlineEdit,
   onEndInlineEdit,
@@ -33,6 +37,7 @@ export function Column({
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
 
   const taskIds = tasks.map((t) => t.id)
+  const highlighted = isOver || isDropTarget
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -47,11 +52,13 @@ export function Column({
   return (
     <section
       className={[
-        'glass flex min-h-[420px] flex-col rounded-2xl p-4 transition duration-200',
-        isOver ? `ring-2 ring-offset-2 ring-offset-bg-main ${accentRing[column.accent]}` : '',
+        'board-column glass-header flex flex-col overflow-visible rounded-2xl p-4 transition duration-200',
+        highlighted
+          ? `column-drop-active ring-2 ring-offset-2 ring-offset-bg-main ${accentRing[column.accent]}`
+          : '',
       ].join(' ')}
     >
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-4 flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-2">
           <span
             className={[
@@ -75,7 +82,7 @@ export function Column({
 
       <div
         ref={setNodeRef}
-        className="flex flex-1 flex-col gap-3 overflow-y-auto"
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-x-visible overflow-y-auto py-1"
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.length === 0 ? (
@@ -97,12 +104,14 @@ export function Column({
         </SortableContext>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-4">
+      <form onSubmit={handleSubmit} className="mt-4 shrink-0">
         <input
+          ref={inputRef}
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Add a task…"
+          aria-label={`Add task to ${column.title}`}
           className="glass-subtle w-full rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition focus:ring-2 focus:ring-accent-purple/40"
         />
       </form>

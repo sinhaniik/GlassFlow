@@ -5,10 +5,12 @@ import { useAppDispatch } from '../../app/hooks'
 import { updateTask } from '../../features/kanban/kanbanSlice'
 import type { Task } from '../../features/kanban/types'
 import { accentClass } from '../../features/kanban/utils'
+import { TaskDateNotch } from './TaskDateNotch'
 
 interface TaskCardProps {
   task: Task
   isDragging?: boolean
+  isOverlay?: boolean
   isInlineEditing?: boolean
   onOpenModal: () => void
   onStartInlineEdit: () => void
@@ -18,6 +20,7 @@ interface TaskCardProps {
 export function TaskCard({
   task,
   isDragging = false,
+  isOverlay = false,
   isInlineEditing = false,
   onOpenModal,
   onStartInlineEdit,
@@ -35,11 +38,11 @@ export function TaskCard({
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: task.id, disabled: isInlineEditing })
+  } = useSortable({ id: task.id, disabled: isInlineEditing || isOverlay })
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isOverlay ? undefined : transition,
   }
 
   const dragging = isDragging || isSortableDragging
@@ -66,7 +69,7 @@ export function TaskCard({
   }
 
   function handleClick() {
-    if (isInlineEditing) return
+    if (isInlineEditing || isOverlay) return
     clickTimerRef.current = setTimeout(() => onOpenModal(), 220)
   }
 
@@ -80,52 +83,67 @@ export function TaskCard({
   }
 
   return (
-    <article
-      ref={setNodeRef}
+    <div
+      ref={isOverlay ? undefined : setNodeRef}
       style={style}
-      {...attributes}
-      {...(isInlineEditing ? {} : listeners)}
+      {...(isOverlay || isInlineEditing ? {} : attributes)}
+      {...(isOverlay || isInlineEditing ? {} : listeners)}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       className={[
-        'glass-subtle group rounded-xl border-l-4 px-4 py-3',
-        'transition duration-200',
-        accentClass[task.accent],
-        isInlineEditing ? 'cursor-text' : 'cursor-grab active:cursor-grabbing',
-        dragging ? 'task-card-dragging scale-[1.02] shadow-lg' : 'hover:scale-[1.01]',
+        'task-row',
+        isOverlay
+          ? 'drag-overlay-card cursor-grabbing'
+          : isInlineEditing
+            ? 'cursor-text'
+            : 'task-card-enter cursor-grab active:cursor-grabbing',
+        !isOverlay && 'transition duration-200',
+        dragging && !isOverlay
+          ? 'task-card-dragging'
+          : !isOverlay && 'hover:scale-[1.01]',
       ].join(' ')}
     >
-      {isInlineEditing ? (
-        <input
-          ref={inputRef}
-          type="text"
-          value={editTitle}
-          onChange={(e) => setEditTitle(e.target.value)}
-          onBlur={saveInlineEdit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') saveInlineEdit()
-            if (e.key === 'Escape') {
-              setEditTitle(task.title)
-              onEndInlineEdit()
-            }
-            e.stopPropagation()
-          }}
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="w-full bg-transparent text-sm font-medium text-text-primary outline-none"
-        />
-      ) : (
-        <>
-          <p className="text-sm font-medium leading-snug text-text-primary">
-            {task.title}
-          </p>
-          {task.description && (
-            <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
-              {task.description}
+      <article
+        className={[
+          'task-card-body glass-subtle rounded-lg border-l-[3px] py-2 pl-3 pr-2',
+          accentClass[task.accent],
+          isInlineEditing && 'task-card-body--full',
+        ].join(' ')}
+      >
+        {isInlineEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={saveInlineEdit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveInlineEdit()
+              if (e.key === 'Escape') {
+                setEditTitle(task.title)
+                onEndInlineEdit()
+              }
+              e.stopPropagation()
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="w-full bg-transparent text-xs font-medium text-text-primary outline-none"
+          />
+        ) : (
+          <>
+            <p className="text-xs font-medium leading-snug text-text-primary">
+              {task.title}
             </p>
-          )}
-        </>
-      )}
-    </article>
+            {task.description && (
+              <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-text-secondary">
+                {task.description}
+              </p>
+            )}
+          </>
+        )}
+      </article>
+
+      {!isInlineEditing && <TaskDateNotch createdAt={task.createdAt} />}
+    </div>
   )
 }

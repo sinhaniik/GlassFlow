@@ -41,3 +41,54 @@ export const accentRing: Record<AccentColor, string> = {
   purple: 'ring-accent-purple',
   mint: 'ring-accent-mint',
 }
+
+export function formatCreatedDate(createdAt: string): {
+  label: string
+  shortLabel: string
+  isToday: boolean
+} {
+  const created = new Date(createdAt)
+  const now = new Date()
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  )
+  const startOfCreated = new Date(
+    created.getFullYear(),
+    created.getMonth(),
+    created.getDate(),
+  )
+  const diffDays = Math.floor(
+    (startOfToday.getTime() - startOfCreated.getTime()) / 86_400_000,
+  )
+
+  if (diffDays === 0) {
+    return { label: 'Today', shortLabel: 'today', isToday: true }
+  }
+  if (diffDays === 1) {
+    return { label: 'Yesterday', shortLabel: 'yst', isToday: false }
+  }
+  if (created.getFullYear() === now.getFullYear()) {
+    const label = created.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+    const shortLabel = created.toLocaleDateString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+    })
+    return { label, shortLabel, isToday: false }
+  }
+  const label = created.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: '2-digit',
+  })
+  const shortLabel = created.toLocaleDateString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: '2-digit',
+  })
+  return { label, shortLabel, isToday: false }
+}

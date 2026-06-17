@@ -57,9 +57,11 @@ const kanbanSlice = createSlice({
     updateTask(state, action: PayloadAction<Partial<Task> & { id: string }>) {
       const index = state.tasks.findIndex((t) => t.id === action.payload.id)
       if (index === -1) return
+      const { id: _, createdAt: __, ...updates } = action.payload
       state.tasks[index] = {
         ...state.tasks[index],
-        ...action.payload,
+        ...updates,
+        createdAt: state.tasks[index].createdAt,
         updatedAt: new Date().toISOString(),
       }
       persistTasks(state.tasks)

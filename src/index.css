@@ -12,10 +12,10 @@
   --accent-purple: #d8c9fa;
   --accent-mint: #bcebd4;
 
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.65);
-  --glass-shadow: 0 8px 32px rgba(28, 27, 31, 0.08);
-  --glass-blur: 20px;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 8px 32px rgba(28, 27, 31, 0.06);
+  --glass-blur: 24px;
 }
 
 /* DARK THEME */
@@ -91,6 +91,34 @@ body {
   border: 1px solid var(--glass-border);
 }
 
+.glass-header {
+  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid color-mix(in srgb, var(--bg-surface) 60%, var(--glass-border));
+  box-shadow:
+    0 4px 24px rgba(28, 27, 31, 0.06),
+    0 1px 3px rgba(28, 27, 31, 0.04);
+}
+
+[data-theme='dark'] .glass-header {
+  background: color-mix(in srgb, var(--bg-surface) 75%, transparent);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.summary-panel {
+  background: color-mix(in srgb, var(--bg-surface) 55%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+}
+
+[data-theme='dark'] .summary-panel {
+  background: color-mix(in srgb, var(--bg-surface) 40%, transparent);
+}
+
 .bg-mesh {
   background-color: var(--bg-main);
   background-image:
@@ -116,8 +144,153 @@ body {
     );
 }
 
+.board-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.5rem;
+}
+
+.board-column {
+  flex: 0 0 min(85vw, 320px);
+  scroll-snap-align: start;
+  min-height: min(70vh, 520px);
+  max-height: calc(100svh - 200px);
+}
+
+@media (min-width: 768px) {
+  .board-scroll {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    overflow-x: visible;
+    scroll-snap-type: none;
+    padding-bottom: 0;
+  }
+
+  .board-column {
+    flex: unset;
+    min-width: 0;
+    min-height: 420px;
+    max-height: calc(100svh - 200px);
+  }
+}
+
+.column-drop-active {
+  animation: column-pulse 0.6s ease-in-out infinite;
+}
+
+.task-row {
+  display: flex;
+  align-items: stretch;
+  gap: 5%;
+  width: 100%;
+  overflow: visible;
+}
+
+.task-card-body {
+  flex: 0 0 85%;
+  min-width: 0;
+}
+
+.task-card-body--full {
+  flex: 0 0 100%;
+}
+
+.task-notch-card {
+  flex: 0 0 10%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 4px 2px;
+  pointer-events: none;
+}
+
+.task-notch-card__text {
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: lowercase;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.task-notch-card--today {
+  background: color-mix(in srgb, var(--accent-mint) 70%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--accent-mint) 85%, var(--glass-border));
+  color: var(--text-primary);
+}
+
+.task-notch-card--stale {
+  background: color-mix(in srgb, var(--accent-orange) 75%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--accent-orange) 90%, var(--glass-border));
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .task-notch-card--today {
+  background: #1c3d2d;
+  border-color: #bcebd4;
+  color: #bcebd4;
+}
+
+[data-theme='dark'] .task-notch-card--stale {
+  background: #4a3319;
+  border-color: #fde0b6;
+  color: #fde0b6;
+}
+
+.task-card-enter {
+  animation: card-enter 0.25s ease-out;
+}
+
 .task-card-dragging {
-  opacity: 0.45;
+  opacity: 0.35;
+  scale: 0.98;
+}
+
+.drag-overlay-card {
+  opacity: 1 !important;
+  scale: 1.03;
+  rotate: 1.5deg;
+  box-shadow: 0 20px 40px rgba(28, 27, 31, 0.18);
+}
+
+[data-theme='dark'] .drag-overlay-card {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+}
+
+.progress-fill {
+  background: linear-gradient(
+    90deg,
+    var(--accent-mint),
+    color-mix(in srgb, var(--accent-mint) 70%, var(--accent-purple))
+  );
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes column-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.005);
+  }
 }
 
 .ring-accent-pink {
