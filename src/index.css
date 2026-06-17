@@ -1,0 +1,117 @@
+@import 'tailwindcss';
+
+/* LIGHT THEME */
+:root {
+  --bg-main: #faf5f5;
+  --bg-surface: #ffffff;
+  --text-primary: #1c1b1f;
+  --text-secondary: #7a757f;
+
+  --accent-pink: #f9c0c3;
+  --accent-orange: #fde0b6;
+  --accent-purple: #d8c9fa;
+  --accent-mint: #bcebd4;
+
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-shadow: 0 8px 32px rgba(28, 27, 31, 0.08);
+  --glass-blur: 20px;
+}
+
+/* DARK THEME */
+[data-theme='dark'] {
+  --bg-main: #121113;
+  --bg-surface: #1d1b1e;
+  --text-primary: #e6e1e5;
+  --text-secondary: #958f99;
+
+  --accent-pink: #4a2022;
+  --accent-orange: #4a3319;
+  --accent-purple: #31234f;
+  --accent-mint: #1c3d2d;
+
+  --glass-bg: rgba(29, 27, 30, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+@theme {
+  --color-bg-main: var(--bg-main);
+  --color-bg-surface: var(--bg-surface);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-orange: var(--accent-orange);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-mint: var(--accent-mint);
+  --font-sans: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background-color: var(--bg-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-subtle {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+.bg-mesh {
+  background-color: var(--bg-main);
+  background-image:
+    radial-gradient(
+      ellipse 80% 60% at 10% 20%,
+      color-mix(in srgb, var(--accent-pink) 45%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 90% 10%,
+      color-mix(in srgb, var(--accent-purple) 40%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 80% 80%,
+      color-mix(in srgb, var(--accent-mint) 35%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 20% 90%,
+      color-mix(in srgb, var(--accent-orange) 40%, transparent),
+      transparent
+    );
+}
