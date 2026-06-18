@@ -1,11 +1,13 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import type { ColumnId, Task } from './types'
+import type { ArchivedTask, BackupData, ColumnId, Task } from './types'
 import { getColumnTasks } from './utils'
 
 const STORAGE_KEY = 'glassflow-kanban'
+const ARCHIVE_KEY = 'glassflow-archive'
 
 interface KanbanState {
   tasks: Task[]
+  archive: ArchivedTask[]
 }
 
 function normalizeTasks(tasks: Task[]): Task[] {
@@ -30,8 +32,24 @@ function loadTasks(): Task[] {
   }
 }
 
+function loadArchive(): ArchivedTask[] {
+  try {
+    const raw = localStorage.getItem(ARCHIVE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as ArchivedTask[]
+    if (!Array.isArray(parsed)) return []
+    return parsed
+  } catch {
+    return []
+  }
+}
+
 function persistTasks(tasks: Task[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
+}
+
+function persistArchive(archive: ArchivedTask[]) {
+  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive))
 }
 
 function reindexColumn(tasks: Task[], columnId: ColumnId) {
@@ -43,6 +61,7 @@ function reindexColumn(tasks: Task[], columnId: ColumnId) {
 
 const initialState: KanbanState = {
   tasks: loadTasks(),
+  archive: loadArchive(),
 }
 
 const kanbanSlice = createSlice({
@@ -106,9 +125,36 @@ const kanbanSlice = createSlice({
 
       persistTasks(state.tasks)
     },
+    archiveDoneTasks(state) {
+      const doneTasks = getColumnTasks(state.tasks, 'done')
+      if (doneTasks.length === 0) return
+
+      const now = new Date().toISOString()
+      const archived = doneTasks.map((task) => ({
+        ...task,
+        archivedAt: now,
+      }))
+
+      state.archive = [...archived, ...state.archive]
+      state.tasks = state.tasks.filter((t) => t.columnId !== 'done')
+      persistTasks(state.tasks)
+      persistArchive(state.archive)
+    },
+    importBackup(state, action: PayloadAction<BackupData>) {
+      state.tasks = normalizeTasks(action.payload.tasks)
+      state.archive = action.payload.archive
+      persistTasks(state.tasks)
+      persistArchive(state.archive)
+    },
   },
 })
 
-export const { addTask, updateTask, deleteTask, moveAndReorder } =
-  kanbanSlice.actions
+export const {
+  addTask,
+  updateTask,
+  deleteTask,
+  moveAndReorder,
+  archiveDoneTasks,
+  importBackup,
+} = kanbanSlice.actions
 export default kanbanSlice.reducer

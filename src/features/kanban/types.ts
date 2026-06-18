@@ -11,6 +11,18 @@ export interface Task {
   order: number
   createdAt: string
   updatedAt: string
+  dueDate?: string
+}
+
+export interface ArchivedTask extends Task {
+  archivedAt: string
+}
+
+export interface BackupData {
+  version: 1
+  exportedAt: string
+  tasks: Task[]
+  archive: ArchivedTask[]
 }
 
 export interface Column {

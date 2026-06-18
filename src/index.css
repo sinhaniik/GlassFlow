@@ -477,6 +477,66 @@ select {
   --tw-ring-color: var(--accent-mint);
 }
 
+.due-date-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-transform: lowercase;
+  border: 1px solid transparent;
+}
+
+.due-date-badge--overdue {
+  background: color-mix(in srgb, var(--accent-pink) 45%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--accent-pink) 65%, var(--glass-border));
+  color: var(--text-primary);
+}
+
+.due-date-badge--today {
+  background: color-mix(in srgb, var(--accent-orange) 50%, var(--glass-bg));
+  border-color: color-mix(
+    in srgb,
+    var(--accent-orange) 70%,
+    var(--glass-border)
+  );
+  color: var(--text-primary);
+}
+
+.due-date-badge--soon {
+  background: color-mix(in srgb, var(--accent-purple) 40%, var(--glass-bg));
+  border-color: color-mix(
+    in srgb,
+    var(--accent-purple) 60%,
+    var(--glass-border)
+  );
+  color: var(--text-primary);
+}
+
+.due-date-badge--later {
+  background: color-mix(in srgb, var(--accent-mint) 30%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--accent-mint) 50%, var(--glass-border));
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .due-date-badge--overdue {
+  color: #f9c0c3;
+}
+
+[data-theme='dark'] .due-date-badge--today {
+  color: #fde0b6;
+}
+
+[data-theme='dark'] .due-date-badge--soon {
+  color: #d8c9fa;
+}
+
+[data-theme='dark'] .due-date-badge--later {
+  color: #bcebd4;
+}
+
 .modal-enter {
   animation: modal-in 0.2s ease-out;
 }

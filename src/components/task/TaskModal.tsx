@@ -18,6 +18,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [dueDate, setDueDate] = useState('')
   const [accent, setAccent] = useState<AccentColor>('pink')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
@@ -26,6 +27,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
     if (!task) return
     setTitle(task.title)
     setDescription(task.description ?? '')
+    setDueDate(task.dueDate ?? '')
     setAccent(task.accent)
     setShowDeleteConfirm(false)
     requestAnimationFrame(() => titleRef.current?.focus())
@@ -53,6 +55,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
         id: task.id,
         title: trimmed,
         description: description.trim() || undefined,
+        dueDate: dueDate || undefined,
         accent,
       }),
     )
@@ -102,6 +105,30 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
                 }}
                 className="glass-input w-full rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none transition"
               />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+                Due date
+                <span className="font-normal"> (optional)</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="glass-input flex-1 rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none transition"
+                />
+                {dueDate && (
+                  <button
+                    type="button"
+                    onClick={() => setDueDate('')}
+                    className="glass-subtle shrink-0 rounded-xl px-3 py-2.5 text-xs font-medium text-text-secondary transition hover:text-text-primary"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </label>
 
             <label className="block">

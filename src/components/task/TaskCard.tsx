@@ -5,6 +5,7 @@ import { useAppDispatch } from '../../app/hooks'
 import { updateTask } from '../../features/kanban/kanbanSlice'
 import type { Task } from '../../features/kanban/types'
 import { accentClass } from '../../features/kanban/utils'
+import { DueDateBadge } from '../ui/DueDateBadge'
 import { TaskDateNotch } from './TaskDateNotch'
 
 interface TaskCardProps {
@@ -131,9 +132,12 @@ export function TaskCard({
           />
         ) : (
           <>
-            <p className="text-xs font-medium leading-snug text-text-primary">
-              {task.title}
-            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="text-xs font-medium leading-snug text-text-primary">
+                {task.title}
+              </p>
+              {task.dueDate && <DueDateBadge dueDate={task.dueDate} />}
+            </div>
             {task.description && (
               <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-text-secondary">
                 {task.description}

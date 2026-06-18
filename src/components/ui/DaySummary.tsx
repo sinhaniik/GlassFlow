@@ -1,11 +1,18 @@
+import { useState } from 'react'
+import { useAppDispatch, useAppSelector } from '../../app/hooks'
+import { archiveDoneTasks } from '../../features/kanban/kanbanSlice'
 import type { Task } from '../../features/kanban/types'
 import { getColumnTasks } from '../../features/kanban/utils'
+import { ConfirmDialog } from './ConfirmDialog'
 
 interface DaySummaryProps {
   tasks: Task[]
 }
 
 export function DaySummary({ tasks }: DaySummaryProps) {
+  const dispatch = useAppDispatch()
+  const archiveCount = useAppSelector((state) => state.kanban.archive.length)
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const todo = getColumnTasks(tasks, 'todo').length
   const inProgress = getColumnTasks(tasks, 'in-progress').length
   const done = getColumnTasks(tasks, 'done').length
@@ -19,18 +26,50 @@ export function DaySummary({ tasks }: DaySummaryProps) {
   })
 
   return (
-    <div className="summary-panel rounded-2xl px-4 py-3.5">
-      <div className="flex items-center justify-between text-sm text-text-secondary">
-        <span>{today}</span>
-        <span>{percent}% complete</span>
+    <>
+      <div className="summary-panel rounded-2xl px-4 py-3.5">
+        <div className="flex items-center justify-between text-sm text-text-secondary">
+          <span>{today}</span>
+          <span>{percent}% complete</span>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <StatItem label="To do" count={todo} accent="pink" />
+          <StatItem label="In progress" count={inProgress} accent="orange" />
+          <StatItem label="Done" count={done} accent="mint" />
+          {archiveCount > 0 && (
+            <span className="text-sm text-text-secondary/70">
+              · {archiveCount} archived
+            </span>
+          )}
+        </div>
+
+        {done > 0 && (
+          <div className="mt-3 border-t border-[var(--glass-border)] pt-3">
+            <button
+              type="button"
+              onClick={() => setShowArchiveConfirm(true)}
+              className="glass-subtle rounded-xl px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:text-text-primary"
+            >
+              End day — archive {done} done {done === 1 ? 'task' : 'tasks'}
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-        <StatItem label="To do" count={todo} accent="pink" />
-        <StatItem label="In progress" count={inProgress} accent="orange" />
-        <StatItem label="Done" count={done} accent="mint" />
-      </div>
-    </div>
+      {showArchiveConfirm && (
+        <ConfirmDialog
+          title="Archive done tasks?"
+          message={`${done} completed ${done === 1 ? 'task' : 'tasks'} will move to your archive and leave the board. You can restore them later via import.`}
+          confirmLabel="Archive"
+          onConfirm={() => {
+            dispatch(archiveDoneTasks())
+            setShowArchiveConfirm(false)
+          }}
+          onCancel={() => setShowArchiveConfirm(false)}
+        />
+      )}
+    </>
   )
 }
 

@@ -1,4 +1,5 @@
 import { useAppSelector } from '../../app/hooks'
+import { BackupControls } from '../ui/BackupControls'
 import { DaySummary } from '../ui/DaySummary'
 import { ThemeToggle } from '../ui/ThemeToggle'
 
@@ -16,7 +17,10 @@ export function AppHeader() {
             Your daily work kanban
           </p>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <BackupControls />
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="mt-4">
