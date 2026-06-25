@@ -22,27 +22,26 @@ import {
 import { moveAndReorder } from "../../features/kanban/kanbanSlice";
 import { DEFAULT_COLUMNS } from "../../features/kanban/types";
 import { getColumnTasks, isColumnId } from "../../features/kanban/utils";
-import { BoardFiltersBar } from "../ui/BoardFilters";
 import type { BoardFilters } from "../../features/kanban/filters";
 import { Column } from "../column/Column";
 import { TaskCard } from "../task/TaskCard";
-import { TaskModal } from "../task/TaskModal";
 
 interface KanbanBoardProps {
   boardFilters: BoardFilters;
-  onBoardFiltersChange: (filters: BoardFilters) => void;
+  onOpenTask: (taskId: string) => void;
+  shortcutsDisabled?: boolean;
 }
 
 export function KanbanBoard({
   boardFilters,
-  onBoardFiltersChange,
+  onOpenTask,
+  shortcutsDisabled = false,
 }: KanbanBoardProps) {
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.kanban.tasks);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
-  const [modalTaskId, setModalTaskId] = useState<string | null>(null);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const todoInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,7 +69,6 @@ export function KanbanBoard({
 
   const handleNewTask = useCallback(() => {
     setInlineEditId(null);
-    setModalTaskId(null);
     todoInputRef.current?.focus();
     todoInputRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -79,19 +77,15 @@ export function KanbanBoard({
   }, []);
 
   const handleEscape = useCallback(() => {
-    if (modalTaskId) {
-      setModalTaskId(null);
-      return;
-    }
     if (inlineEditId) {
       setInlineEditId(null);
     }
-  }, [modalTaskId, inlineEditId]);
+  }, [inlineEditId]);
 
   useKeyboardShortcuts({
     onNewTask: handleNewTask,
     onEscape: handleEscape,
-    disabled: Boolean(modalTaskId),
+    disabled: shortcutsDisabled,
   });
 
   function handleDragStart(event: DragStartEvent) {
@@ -164,22 +158,11 @@ export function KanbanBoard({
 
   function handleOpenModal(taskId: string) {
     setInlineEditId(null);
-    setModalTaskId(taskId);
-  }
-
-  function handleCloseModal() {
-    setModalTaskId(null);
+    onOpenTask(taskId);
   }
 
   return (
     <>
-      <BoardFiltersBar
-        filters={boardFilters}
-        onChange={onBoardFiltersChange}
-        resultCount={visibleTasks.length}
-        totalCount={tasks.length}
-      />
-
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -231,8 +214,6 @@ export function KanbanBoard({
           ) : null}
         </DragOverlay>
       </DndContext>
-
-      <TaskModal taskId={modalTaskId} onClose={handleCloseModal} />
     </>
   );
 }

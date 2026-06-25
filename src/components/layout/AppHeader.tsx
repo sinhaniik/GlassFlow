@@ -24,7 +24,7 @@ export function AppHeader({
             GlassFlow
           </h1>
           <p className="mt-0.5 text-xs text-text-secondary sm:text-sm">
-            Your daily work kanban
+            Your daily work board
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
