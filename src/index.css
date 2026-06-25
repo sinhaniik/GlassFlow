@@ -715,11 +715,9 @@ select {
 @keyframes filter-panel-in {
   from {
     opacity: 0;
-    transform: translateY(-4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -926,11 +924,9 @@ select {
 @keyframes view-fade-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -2843,9 +2839,26 @@ select {
   color: rgba(255, 255, 255, 0.65);
 }
 
-.task-card--drop-before {
-  margin-top: 4.5rem;
-  transition: margin-top 200ms ease;
+.task-card--drop-before::before {
+  content: '';
+  display: block;
+  height: 4.25rem;
+  margin-bottom: 0.75rem;
+  border-radius: 0.875rem;
+  border: 2px dashed color-mix(in srgb, var(--accent-purple) 45%, var(--glass-border));
+  background: color-mix(in srgb, var(--accent-purple) 10%, var(--bg-surface));
+  animation: drop-slot-pulse 1.2s ease-in-out infinite;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+@keyframes drop-slot-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .task-card-dragging {
@@ -3043,11 +3056,9 @@ select {
 @keyframes modal-in {
   from {
     opacity: 0;
-    transform: scale(0.97) translateY(10px);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
   }
 }
 
@@ -3075,11 +3086,9 @@ select {
 @keyframes content-rise {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

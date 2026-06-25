@@ -170,9 +170,9 @@ export function Column({
           ))
         )}
 
-        {placeholderIndex === tasks.length && tasks.length > 0 && (
-          <DropPlaceholder />
-        )}
+        {activeId !== null &&
+          placeholderIndex === tasks.length &&
+          tasks.length > 0 && <DropPlaceholder />}
       </div>
 
       {canAddTask && (

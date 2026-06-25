@@ -1,4 +1,12 @@
-import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
   filterTasks,
@@ -100,7 +108,30 @@ export function KanbanBoard({
     setActiveId(null);
     setOverId(null);
     setOverColumnId(null);
+    setOverlayPos({ x: 0, y: 0 });
   }, [removeDragListeners]);
+
+  useEffect(() => {
+    return () => {
+      removeDragListeners();
+    };
+  }, [removeDragListeners]);
+
+  useEffect(() => {
+    if (!activeId) return;
+
+    function cancelDrag() {
+      endDrag();
+    }
+
+    window.addEventListener("blur", cancelDrag);
+    document.addEventListener("visibilitychange", cancelDrag);
+
+    return () => {
+      window.removeEventListener("blur", cancelDrag);
+      document.removeEventListener("visibilitychange", cancelDrag);
+    };
+  }, [activeId, endDrag]);
 
   const commitDrop = useCallback(
     (taskId: string, x: number, y: number) => {
@@ -231,24 +262,26 @@ export function KanbanBoard({
         ))}
       </div>
 
-      {activeTask && (
-        <div
-          className="kanban-drag-overlay"
-          style={{
-            left: overlayPos.x,
-            top: overlayPos.y,
-          }}
-        >
-          <TaskCard
-            task={activeTask}
-            isDragging
-            isOverlay
-            onOpenModal={() => {}}
-            onStartInlineEdit={() => {}}
-            onEndInlineEdit={() => {}}
-          />
-        </div>
-      )}
+      {activeTask &&
+        createPortal(
+          <div
+            className="kanban-drag-overlay"
+            style={{
+              left: overlayPos.x,
+              top: overlayPos.y,
+            }}
+          >
+            <TaskCard
+              task={activeTask}
+              isDragging
+              isOverlay
+              onOpenModal={() => {}}
+              onStartInlineEdit={() => {}}
+              onEndInlineEdit={() => {}}
+            />
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
