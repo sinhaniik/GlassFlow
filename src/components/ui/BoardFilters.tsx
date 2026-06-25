@@ -18,12 +18,33 @@ type ToggleFilterKey = keyof ToggleBoardFilters
 const FILTER_OPTIONS: {
   key: ToggleFilterKey
   label: string
-  hint?: string
+  description: string
+  accent: 'pink' | 'orange' | 'mint' | 'purple'
 }[] = [
-  { key: 'priorityHigh', label: 'High priority', hint: 'Priority' },
-  { key: 'dueToday', label: 'Due today' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'labelFeatures', label: 'features', hint: 'Label' },
+  {
+    key: 'priorityHigh',
+    label: 'High priority',
+    description: 'Only urgent tasks',
+    accent: 'pink',
+  },
+  {
+    key: 'dueToday',
+    label: 'Due today',
+    description: 'Tasks due by end of day',
+    accent: 'orange',
+  },
+  {
+    key: 'completed',
+    label: 'Completed',
+    description: 'Tasks in Done',
+    accent: 'mint',
+  },
+  {
+    key: 'labelFeatures',
+    label: 'Features',
+    description: 'Feature label or keyword',
+    accent: 'purple',
+  },
 ]
 
 export function BoardFiltersBar({
@@ -88,6 +109,10 @@ export function BoardFiltersBar({
     setDraft((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
+  function clearDraft() {
+    setDraft(DEFAULT_TOGGLE_FILTERS)
+  }
+
   function clearToggleFilters() {
     onChange({ ...filters, ...DEFAULT_TOGGLE_FILTERS })
     setDraft(DEFAULT_TOGGLE_FILTERS)
@@ -104,6 +129,12 @@ export function BoardFiltersBar({
   const active = hasActiveFilters(filters)
   const toggleFiltersActive = hasActiveToggleFilters(filters)
   const draftCount = Object.values(draft).filter(Boolean).length
+  const activeFilterCount = Object.values({
+    priorityHigh: filters.priorityHigh,
+    dueToday: filters.dueToday,
+    completed: filters.completed,
+    labelFeatures: filters.labelFeatures,
+  }).filter(Boolean).length
 
   return (
     <section className="board-filters" aria-label="Filter tasks">
@@ -123,17 +154,11 @@ export function BoardFiltersBar({
               .filter(Boolean)
               .join(' ')}
           >
-            Filters
+            <FilterIcon />
+            <span>Filters</span>
             {toggleFiltersActive && (
               <span className="board-search__filter-badge">
-                {
-                  Object.values({
-                    priorityHigh: filters.priorityHigh,
-                    dueToday: filters.dueToday,
-                    completed: filters.completed,
-                    labelFeatures: filters.labelFeatures,
-                  }).filter(Boolean).length
-                }
+                {activeFilterCount}
               </span>
             )}
           </button>
@@ -146,53 +171,79 @@ export function BoardFiltersBar({
               className="filter-panel"
               onKeyDown={handlePanelKeyDown}
             >
-              <p className="filter-panel__title">Filters</p>
+              <header className="filter-panel__header">
+                <div>
+                  <p className="filter-panel__title">Filter tasks</p>
+                  <p className="filter-panel__subtitle">
+                    Narrow your board view
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="filter-panel__close"
+                  aria-label="Close filters"
+                  onClick={() => setPanelOpen(false)}
+                >
+                  <CloseIcon />
+                </button>
+              </header>
 
               <ul className="filter-panel__list">
-                {FILTER_OPTIONS.map(({ key, label, hint }) => (
-                  <li key={key}>
-                    <label className="filter-panel__option">
-                      <input
-                        type="checkbox"
-                        checked={draft[key]}
-                        onChange={() => toggleDraft(key)}
-                        className="filter-panel__checkbox"
-                      />
-                      <span className="filter-panel__option-text">
-                        {hint && (
-                          <span className="filter-panel__option-hint">
-                            {hint}
+                {FILTER_OPTIONS.map(({ key, label, description, accent }) => {
+                  const checked = draft[key]
+                  return (
+                    <li key={key}>
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={checked}
+                        onClick={() => toggleDraft(key)}
+                        className={[
+                          'filter-panel__chip',
+                          `filter-panel__chip--${accent}`,
+                          checked && 'filter-panel__chip--active',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                      >
+                        <span className="filter-panel__chip-check" aria-hidden>
+                          {checked ? <CheckIcon /> : null}
+                        </span>
+                        <span className="filter-panel__chip-copy">
+                          <span className="filter-panel__chip-label">{label}</span>
+                          <span className="filter-panel__chip-desc">
+                            {description}
                           </span>
-                        )}
-                        {label}
-                      </span>
-                    </label>
-                  </li>
-                ))}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
 
               {draftCount > 0 && (
                 <p className="filter-panel__draft-count">
-                  {draftCount} selected
+                  {draftCount} filter{draftCount === 1 ? '' : 's'} selected
                 </p>
               )}
 
-              <div className="filter-panel__footer">
+              <footer className="filter-panel__footer">
                 <button
                   type="button"
-                  onClick={() => setPanelOpen(false)}
+                  onClick={clearDraft}
                   className="filter-panel__btn filter-panel__btn--ghost"
+                  disabled={draftCount === 0}
                 >
-                  Cancel
+                  Reset
                 </button>
                 <button
                   type="button"
                   onClick={applyDraft}
                   className="filter-panel__btn filter-panel__btn--primary"
                 >
-                  Okay
+                  Apply filters
                 </button>
-              </div>
+              </footer>
             </div>
           )}
         </div>
@@ -214,5 +265,58 @@ export function BoardFiltersBar({
         </p>
       )}
     </section>
+  )
+}
+
+function FilterIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 6h16M7 12h10M10 18h4" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
   )
 }
