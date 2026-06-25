@@ -40,6 +40,7 @@ export function KanbanBoard({
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.kanban.tasks);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
   const [modalTaskId, setModalTaskId] = useState<string | null>(null);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
@@ -101,14 +102,16 @@ export function KanbanBoard({
   function handleDragOver(event: DragOverEvent) {
     const { over } = event;
     if (!over) {
+      setOverId(null);
       setOverColumnId(null);
       return;
     }
-    const overId = over.id as string;
-    if (isColumnId(overId)) {
-      setOverColumnId(overId);
+    const nextOverId = over.id as string;
+    setOverId(nextOverId);
+    if (isColumnId(nextOverId)) {
+      setOverColumnId(nextOverId);
     } else {
-      const overTask = tasks.find((t) => t.id === overId);
+      const overTask = tasks.find((t) => t.id === nextOverId);
       setOverColumnId(overTask?.columnId ?? null);
     }
   }
@@ -116,6 +119,7 @@ export function KanbanBoard({
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
+    setOverId(null);
     setOverColumnId(null);
     if (!over) return;
 
@@ -154,6 +158,7 @@ export function KanbanBoard({
 
   function handleDragCancel() {
     setActiveId(null);
+    setOverId(null);
     setOverColumnId(null);
   }
 
@@ -178,6 +183,11 @@ export function KanbanBoard({
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
+        autoScroll={{
+          threshold: { x: 0.12, y: 0.18 },
+          acceleration: 14,
+          interval: 6,
+        }}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
@@ -191,6 +201,8 @@ export function KanbanBoard({
               tasks={getColumnTasks(visibleTasks, column.id)}
               filtersActive={filtersActive}
               inlineEditId={inlineEditId}
+              activeId={activeId}
+              overId={overId}
               isDropTarget={overColumnId === column.id && activeId !== null}
               inputRef={column.id === "todo" ? todoInputRef : undefined}
               onOpenModal={handleOpenModal}
@@ -202,9 +214,10 @@ export function KanbanBoard({
 
         <DragOverlay
           dropAnimation={{
-            duration: 250,
-            easing: "cubic-bezier(0.18, 0.67, 0.32, 1.02)",
+            duration: 320,
+            easing: "cubic-bezier(0.22, 1, 0.36, 1)",
           }}
+          style={{ cursor: "grabbing" }}
         >
           {activeTask ? (
             <TaskCard

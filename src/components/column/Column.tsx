@@ -8,13 +8,29 @@ import { useAppDispatch } from '../../app/hooks'
 import { addTask } from '../../features/kanban/kanbanSlice'
 import type { Column as ColumnType, Task } from '../../features/kanban/types'
 import { accentRing, createTask } from '../../features/kanban/utils'
+import { DropPlaceholder } from '../ui/DropPlaceholder'
 import { EmptyState } from '../ui/EmptyState'
 import { TaskCard } from '../task/TaskCard'
+
+function getPlaceholderIndex(
+  columnId: string,
+  tasks: Task[],
+  overId: string | null,
+  activeId: string | null,
+): number | null {
+  if (!activeId || !overId || overId === activeId) return null
+  if (overId === columnId) return tasks.length
+  const overIndex = tasks.findIndex((task) => task.id === overId)
+  if (overIndex === -1) return null
+  return overIndex
+}
 
 interface ColumnProps {
   column: ColumnType
   tasks: Task[]
   inlineEditId: string | null
+  activeId?: string | null
+  overId?: string | null
   filtersActive?: boolean
   isDropTarget?: boolean
   inputRef?: RefObject<HTMLInputElement | null>
@@ -27,6 +43,8 @@ export function Column({
   column,
   tasks,
   inlineEditId,
+  activeId = null,
+  overId = null,
   filtersActive = false,
   isDropTarget = false,
   inputRef,
@@ -40,6 +58,14 @@ export function Column({
 
   const taskIds = tasks.map((t) => t.id)
   const highlighted = isOver || isDropTarget
+  const placeholderIndex = getPlaceholderIndex(
+    column.id,
+    tasks,
+    overId,
+    activeId,
+  )
+  const showEmptyPlaceholder =
+    activeId !== null && isDropTarget && tasks.length === 0
   const canAddTask = column.id === 'todo'
   const emptyLabel = canAddTask
     ? 'Drop tasks here or add one below'
@@ -88,7 +114,9 @@ export function Column({
         className="board-column__tasks flex min-h-0 flex-1 flex-col gap-3 overflow-x-visible overflow-y-auto py-1"
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          {tasks.length === 0 ? (
+          {showEmptyPlaceholder ? (
+            <DropPlaceholder />
+          ) : tasks.length === 0 ? (
             <EmptyState
               label={
                 filtersActive
@@ -97,18 +125,23 @@ export function Column({
               }
             />
           ) : (
-            tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                isInlineEditing={inlineEditId === task.id}
-                onOpenModal={() => {
-                  if (inlineEditId !== task.id) onOpenModal(task.id)
-                }}
-                onStartInlineEdit={() => onStartInlineEdit(task.id)}
-                onEndInlineEdit={onEndInlineEdit}
-              />
+            tasks.map((task, index) => (
+              <div key={task.id} className="board-column__item">
+                {placeholderIndex === index && <DropPlaceholder />}
+                <TaskCard
+                  task={task}
+                  isInlineEditing={inlineEditId === task.id}
+                  onOpenModal={() => {
+                    if (inlineEditId !== task.id) onOpenModal(task.id)
+                  }}
+                  onStartInlineEdit={() => onStartInlineEdit(task.id)}
+                  onEndInlineEdit={onEndInlineEdit}
+                />
+              </div>
             ))
+          )}
+          {placeholderIndex === tasks.length && tasks.length > 0 && (
+            <DropPlaceholder />
           )}
         </SortableContext>
       </div>

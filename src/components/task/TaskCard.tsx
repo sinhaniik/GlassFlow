@@ -1,4 +1,7 @@
-import { useSortable } from '@dnd-kit/sortable'
+import {
+  defaultAnimateLayoutChanges,
+  useSortable,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useRef, useState } from 'react'
 import { useAppDispatch } from '../../app/hooks'
@@ -38,11 +41,19 @@ export function TaskCard({
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: task.id, disabled: isInlineEditing || isOverlay })
+  } = useSortable({
+    id: task.id,
+    disabled: isInlineEditing || isOverlay,
+    animateLayoutChanges: (args) =>
+      defaultAnimateLayoutChanges({ ...args, wasDragging: true }),
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: isOverlay ? undefined : transition,
+    transition: isOverlay
+      ? undefined
+      : transition ??
+        'transform 280ms cubic-bezier(0.25, 1, 0.5, 1), opacity 200ms ease',
   }
 
   const dragging = isDragging || isSortableDragging
@@ -115,7 +126,7 @@ export function TaskCard({
         'task-card',
         dragging && 'task-card--dragging-touch',
         isOverlay
-          ? 'drag-overlay-card cursor-grabbing'
+          ? 'drag-overlay-card drag-overlay-card--active cursor-grabbing'
           : isInlineEditing
             ? 'cursor-text'
             : 'task-card-enter cursor-grab active:cursor-grabbing',
