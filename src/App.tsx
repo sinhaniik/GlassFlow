@@ -4,10 +4,10 @@ import { KeyboardHints } from './components/ui/KeyboardHints'
 
 function App() {
   return (
-    <div className="bg-mesh flex min-h-svh flex-col">
+    <div className="app-shell bg-mesh flex min-h-svh flex-col">
       <AppHeader />
 
-      <main className="mx-auto w-full max-w-[min(96vw,1400px)] flex-1 px-4 py-5">
+      <main className="app-main mx-auto w-full max-w-[87.5rem] flex-1 px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
         <KanbanBoard />
       </main>
 

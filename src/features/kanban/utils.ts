@@ -4,8 +4,9 @@ import type {
   BackupData,
   ColumnId,
   Task,
+  TaskPriority,
 } from './types'
-import { ACCENT_COLORS } from './types'
+import { ACCENT_COLORS, TASK_PRIORITIES } from './types'
 
 export function isColumnId(id: string): id is ColumnId {
   return id === 'todo' || id === 'in-progress' || id === 'done'
@@ -29,6 +30,7 @@ export function createTask(
     title: title.trim(),
     columnId,
     accent,
+    priority: 'low',
     order,
     createdAt: now,
     updatedAt: now,
@@ -52,6 +54,8 @@ export const accentRing: Record<AccentColor, string> = {
 export function formatCreatedDate(createdAt: string): {
   label: string
   shortLabel: string
+  monthLabel: string
+  dayLabel: string
   isToday: boolean
 } {
   const created = new Date(createdAt)
@@ -71,33 +75,81 @@ export function formatCreatedDate(createdAt: string): {
   )
 
   if (diffDays === 0) {
-    return { label: 'Today', shortLabel: 'today', isToday: true }
+    return {
+      label: 'Today',
+      shortLabel: 'today',
+      monthLabel: 'today',
+      dayLabel: '',
+      isToday: true,
+    }
   }
   if (diffDays === 1) {
-    return { label: 'Yesterday', shortLabel: 'yst', isToday: false }
+    return {
+      label: 'Yesterday',
+      shortLabel: 'yst',
+      monthLabel: 'yst',
+      dayLabel: '',
+      isToday: false,
+    }
   }
+
+  const monthLabel = created.toLocaleDateString('en-US', { month: 'short' })
+  const dayLabel = String(created.getDate())
+  const shortLabel = created.toLocaleDateString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+  })
+
   if (created.getFullYear() === now.getFullYear()) {
     const label = created.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     })
-    const shortLabel = created.toLocaleDateString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-    })
-    return { label, shortLabel, isToday: false }
+    return { label, shortLabel, monthLabel, dayLabel, isToday: false }
   }
+
   const label = created.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: '2-digit',
   })
-  const shortLabel = created.toLocaleDateString('en-US', {
+  const yearShortLabel = created.toLocaleDateString('en-US', {
     month: 'numeric',
     day: 'numeric',
     year: '2-digit',
   })
-  return { label, shortLabel, isToday: false }
+  return {
+    label,
+    shortLabel: yearShortLabel,
+    monthLabel,
+    dayLabel,
+    isToday: false,
+  }
+}
+
+export function getTaskPriority(task: Task): {
+  label: string
+  level: TaskPriority
+} {
+  const level = task.priority ?? 'low'
+  return { label: level === 'high' ? 'High' : 'Low', level }
+}
+
+export function getColumnProgress(columnId: ColumnId): number {
+  switch (columnId) {
+    case 'todo':
+      return 0
+    case 'in-progress':
+      return 50
+    case 'done':
+      return 100
+  }
+}
+
+function normalizePriority(priority: unknown): TaskPriority {
+  return TASK_PRIORITIES.includes(priority as TaskPriority)
+    ? (priority as TaskPriority)
+    : 'low'
 }
 
 export type DueDateStatus = 'overdue' | 'today' | 'soon' | 'later'
@@ -191,6 +243,7 @@ export function normalizeTask(raw: Partial<Task>, index: number): Task | null {
         : undefined,
     columnId,
     accent: normalizeAccent(raw.accent, 'pink'),
+    priority: normalizePriority(raw.priority),
     order: typeof raw.order === 'number' ? raw.order : index,
     createdAt,
     updatedAt,

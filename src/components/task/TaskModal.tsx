@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { deleteTask, updateTask } from '../../features/kanban/kanbanSlice'
-import type { AccentColor } from '../../features/kanban/types'
+import type { AccentColor, TaskPriority } from '../../features/kanban/types'
 import { AccentPicker } from '../ui/AccentPicker'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { PriorityPicker } from '../ui/PriorityPicker'
 
 interface TaskModalProps {
   taskId: string | null
@@ -20,6 +21,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [accent, setAccent] = useState<AccentColor>('pink')
+  const [priority, setPriority] = useState<TaskPriority>('low')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
 
@@ -29,6 +31,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
     setDescription(task.description ?? '')
     setDueDate(task.dueDate ?? '')
     setAccent(task.accent)
+    setPriority(task.priority ?? 'low')
     setShowDeleteConfirm(false)
     requestAnimationFrame(() => titleRef.current?.focus())
   }, [task])
@@ -57,6 +60,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
         description: description.trim() || undefined,
         dueDate: dueDate || undefined,
         accent,
+        priority,
       }),
     )
     onClose()
@@ -71,7 +75,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
         <button
           type="button"
           aria-label="Close"
@@ -81,7 +85,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
         <div
           role="dialog"
           aria-labelledby="task-modal-title"
-          className="glass-elevated modal-enter relative w-full max-w-md rounded-2xl p-6"
+          className="glass-elevated modal-enter relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl p-4 sm:max-h-[90dvh] sm:rounded-2xl sm:p-6"
         >
           <h2
             id="task-modal-title"
@@ -92,7 +96,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
 
           <div className="mt-5 space-y-4">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+              <span className="mb-1.5 block text-xs font-semibold text-text-primary">
                 Title
               </span>
               <input
@@ -108,9 +112,9 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+              <span className="mb-1.5 block text-xs font-semibold text-text-primary">
                 Due date
-                <span className="font-normal"> (optional)</span>
+                <span className="font-normal text-text-secondary"> (optional)</span>
               </span>
               <div className="flex items-center gap-2">
                 <input
@@ -132,9 +136,9 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+              <span className="mb-1.5 block text-xs font-semibold text-text-primary">
                 Description
-                <span className="font-normal"> (optional)</span>
+                <span className="font-normal text-text-secondary"> (optional)</span>
               </span>
               <textarea
                 value={description}
@@ -146,14 +150,21 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
             </label>
 
             <div>
-              <span className="mb-2 block text-xs font-medium text-text-secondary">
+              <span className="mb-2 block text-xs font-semibold text-text-primary">
+                Priority
+              </span>
+              <PriorityPicker value={priority} onChange={setPriority} />
+            </div>
+
+            <div>
+              <span className="mb-2 block text-xs font-semibold text-text-primary">
                 Accent color
               </span>
               <AccentPicker value={accent} onChange={setAccent} />
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
@@ -161,7 +172,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
             >
               Delete task
             </button>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
               <button
                 type="button"
                 onClick={onClose}

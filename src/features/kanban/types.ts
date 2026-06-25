@@ -2,12 +2,15 @@ export type ColumnId = 'todo' | 'in-progress' | 'done'
 
 export type AccentColor = 'pink' | 'orange' | 'purple' | 'mint'
 
+export type TaskPriority = 'high' | 'low'
+
 export interface Task {
   id: string
   title: string
   description?: string
   columnId: ColumnId
   accent: AccentColor
+  priority?: TaskPriority
   order: number
   createdAt: string
   updatedAt: string
@@ -43,3 +46,5 @@ export const ACCENT_COLORS: AccentColor[] = [
   'purple',
   'mint',
 ]
+
+export const TASK_PRIORITIES: TaskPriority[] = ['high', 'low']

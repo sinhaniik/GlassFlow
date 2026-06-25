@@ -29,7 +29,7 @@ export function ConfirmDialog({
   }, [onCancel])
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center p-3 sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Cancel"
@@ -40,7 +40,7 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
-        className="glass-elevated relative w-full max-w-sm rounded-2xl p-6"
+        className="glass-elevated relative w-full max-w-sm rounded-t-2xl p-4 sm:rounded-2xl sm:p-6"
       >
         <h3
           id="confirm-title"

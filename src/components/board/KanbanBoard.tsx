@@ -3,140 +3,147 @@ import {
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
-} from '@dnd-kit/core'
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { useCallback, useRef, useState } from 'react'
-import { useAppDispatch, useAppSelector } from '../../app/hooks'
-import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
-import { moveAndReorder } from '../../features/kanban/kanbanSlice'
-import { DEFAULT_COLUMNS } from '../../features/kanban/types'
-import { getColumnTasks, isColumnId } from '../../features/kanban/utils'
-import { Column } from '../column/Column'
-import { TaskCard } from '../task/TaskCard'
-import { TaskModal } from '../task/TaskModal'
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { useCallback, useRef, useState } from "react";
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { moveAndReorder } from "../../features/kanban/kanbanSlice";
+import { DEFAULT_COLUMNS } from "../../features/kanban/types";
+import { getColumnTasks, isColumnId } from "../../features/kanban/utils";
+import { Column } from "../column/Column";
+import { TaskCard } from "../task/TaskCard";
+import { TaskModal } from "../task/TaskModal";
 
 export function KanbanBoard() {
-  const dispatch = useAppDispatch()
-  const tasks = useAppSelector((state) => state.kanban.tasks)
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const [overColumnId, setOverColumnId] = useState<string | null>(null)
-  const [modalTaskId, setModalTaskId] = useState<string | null>(null)
-  const [inlineEditId, setInlineEditId] = useState<string | null>(null)
-  const todoInputRef = useRef<HTMLInputElement>(null)
+  const dispatch = useAppDispatch();
+  const tasks = useAppSelector((state) => state.kanban.tasks);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overColumnId, setOverColumnId] = useState<string | null>(null);
+  const [modalTaskId, setModalTaskId] = useState<string | null>(null);
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
+  const todoInputRef = useRef<HTMLInputElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 6 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
-  )
+  );
 
   const activeTask = activeId
     ? tasks.find((t) => t.id === activeId)
-    : undefined
+    : undefined;
 
   const handleNewTask = useCallback(() => {
-    setInlineEditId(null)
-    setModalTaskId(null)
-    todoInputRef.current?.focus()
-    todoInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [])
+    setInlineEditId(null);
+    setModalTaskId(null);
+    todoInputRef.current?.focus();
+    todoInputRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }, []);
 
   const handleEscape = useCallback(() => {
     if (modalTaskId) {
-      setModalTaskId(null)
-      return
+      setModalTaskId(null);
+      return;
     }
     if (inlineEditId) {
-      setInlineEditId(null)
+      setInlineEditId(null);
     }
-  }, [modalTaskId, inlineEditId])
+  }, [modalTaskId, inlineEditId]);
 
   useKeyboardShortcuts({
     onNewTask: handleNewTask,
     onEscape: handleEscape,
     disabled: Boolean(modalTaskId),
-  })
+  });
 
   function handleDragStart(event: DragStartEvent) {
-    setInlineEditId(null)
-    setActiveId(event.active.id as string)
+    setInlineEditId(null);
+    setActiveId(event.active.id as string);
   }
 
   function handleDragOver(event: DragOverEvent) {
-    const { over } = event
+    const { over } = event;
     if (!over) {
-      setOverColumnId(null)
-      return
+      setOverColumnId(null);
+      return;
     }
-    const overId = over.id as string
+    const overId = over.id as string;
     if (isColumnId(overId)) {
-      setOverColumnId(overId)
+      setOverColumnId(overId);
     } else {
-      const overTask = tasks.find((t) => t.id === overId)
-      setOverColumnId(overTask?.columnId ?? null)
+      const overTask = tasks.find((t) => t.id === overId);
+      setOverColumnId(overTask?.columnId ?? null);
     }
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveId(null)
-    setOverColumnId(null)
-    if (!over) return
+    const { active, over } = event;
+    setActiveId(null);
+    setOverColumnId(null);
+    if (!over) return;
 
-    const activeTaskId = active.id as string
-    const overId = over.id as string
-    const dragged = tasks.find((t) => t.id === activeTaskId)
-    if (!dragged) return
+    const activeTaskId = active.id as string;
+    const overId = over.id as string;
+    const dragged = tasks.find((t) => t.id === activeTaskId);
+    if (!dragged) return;
 
-    let toColumnId = dragged.columnId
-    let toIndex = 0
+    let toColumnId = dragged.columnId;
+    let toIndex = 0;
 
     if (isColumnId(overId)) {
-      toColumnId = overId
-      toIndex = getColumnTasks(tasks, overId).length
+      toColumnId = overId;
+      toIndex = getColumnTasks(tasks, overId).length;
     } else {
-      const overTask = tasks.find((t) => t.id === overId)
-      if (!overTask) return
-      toColumnId = overTask.columnId
+      const overTask = tasks.find((t) => t.id === overId);
+      if (!overTask) return;
+      toColumnId = overTask.columnId;
       toIndex = getColumnTasks(tasks, toColumnId).findIndex(
         (t) => t.id === overId,
-      )
+      );
     }
 
-    const fromColumnId = dragged.columnId
+    const fromColumnId = dragged.columnId;
     const fromIndex = getColumnTasks(tasks, fromColumnId).findIndex(
       (t) => t.id === activeTaskId,
-    )
+    );
 
-    if (fromColumnId === toColumnId && fromIndex === toIndex) return
+    if (fromColumnId === toColumnId && fromIndex === toIndex) return;
     if (fromColumnId === toColumnId && fromIndex < toIndex) {
-      toIndex -= 1
+      toIndex -= 1;
     }
 
-    dispatch(moveAndReorder({ taskId: activeTaskId, toColumnId, toIndex }))
+    dispatch(moveAndReorder({ taskId: activeTaskId, toColumnId, toIndex }));
   }
 
   function handleDragCancel() {
-    setActiveId(null)
-    setOverColumnId(null)
+    setActiveId(null);
+    setOverColumnId(null);
   }
 
   function handleOpenModal(taskId: string) {
-    setInlineEditId(null)
-    setModalTaskId(taskId)
+    setInlineEditId(null);
+    setModalTaskId(taskId);
   }
 
   function handleCloseModal() {
-    setModalTaskId(null)
+    setModalTaskId(null);
   }
 
   return (
@@ -157,7 +164,7 @@ export function KanbanBoard() {
               tasks={getColumnTasks(tasks, column.id)}
               inlineEditId={inlineEditId}
               isDropTarget={overColumnId === column.id && activeId !== null}
-              inputRef={column.id === 'todo' ? todoInputRef : undefined}
+              inputRef={column.id === "todo" ? todoInputRef : undefined}
               onOpenModal={handleOpenModal}
               onStartInlineEdit={setInlineEditId}
               onEndInlineEdit={() => setInlineEditId(null)}
@@ -168,7 +175,7 @@ export function KanbanBoard() {
         <DragOverlay
           dropAnimation={{
             duration: 250,
-            easing: 'cubic-bezier(0.18, 0.67, 0.32, 1.02)',
+            easing: "cubic-bezier(0.18, 0.67, 0.32, 1.02)",
           }}
         >
           {activeTask ? (
@@ -176,9 +183,9 @@ export function KanbanBoard() {
               task={activeTask}
               isDragging
               isOverlay
-              onOpenModal={() => {}}
-              onStartInlineEdit={() => {}}
-              onEndInlineEdit={() => {}}
+              onOpenModal={() => { }}
+              onStartInlineEdit={() => { }}
+              onEndInlineEdit={() => { }}
             />
           ) : null}
         </DragOverlay>
@@ -186,5 +193,5 @@ export function KanbanBoard() {
 
       <TaskModal taskId={modalTaskId} onClose={handleCloseModal} />
     </>
-  )
+  );
 }

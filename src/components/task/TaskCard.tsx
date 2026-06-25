@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAppDispatch } from '../../app/hooks'
 import { updateTask } from '../../features/kanban/kanbanSlice'
 import type { Task } from '../../features/kanban/types'
-import { accentClass } from '../../features/kanban/utils'
-import { DueDateBadge } from '../ui/DueDateBadge'
-import { TaskDateNotch } from './TaskDateNotch'
+import { KanbanTaskCard } from './KanbanTaskCard'
 
 interface TaskCardProps {
   task: Task
@@ -31,6 +29,7 @@ export function TaskCard({
   const [editTitle, setEditTitle] = useState(task.title)
   const inputRef = useRef<HTMLInputElement>(null)
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didDragRef = useRef(false)
 
   const {
     attributes,
@@ -56,6 +55,10 @@ export function TaskCard({
   }, [isInlineEditing, task.title])
 
   useEffect(() => {
+    if (isSortableDragging) didDragRef.current = true
+  }, [isSortableDragging])
+
+  useEffect(() => {
     return () => {
       if (clickTimerRef.current) clearTimeout(clickTimerRef.current)
     }
@@ -71,6 +74,10 @@ export function TaskCard({
 
   function handleClick() {
     if (isInlineEditing || isOverlay) return
+    if (didDragRef.current) {
+      didDragRef.current = false
+      return
+    }
     clickTimerRef.current = setTimeout(() => onOpenModal(), 220)
   }
 
@@ -92,7 +99,8 @@ export function TaskCard({
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       className={[
-        'task-row',
+        'task-card',
+        dragging && 'task-card--dragging-touch',
         isOverlay
           ? 'drag-overlay-card cursor-grabbing'
           : isInlineEditing
@@ -104,50 +112,18 @@ export function TaskCard({
           : !isOverlay && 'hover:scale-[1.01]',
       ].join(' ')}
     >
-      <article
-        className={[
-          'task-card-body glass-card rounded-lg border-l-[3px] py-2 pl-3 pr-2',
-          accentClass[task.accent],
-          isInlineEditing && 'task-card-body--full',
-        ].join(' ')}
-      >
-        {isInlineEditing ? (
-          <input
-            ref={inputRef}
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            onBlur={saveInlineEdit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') saveInlineEdit()
-              if (e.key === 'Escape') {
-                setEditTitle(task.title)
-                onEndInlineEdit()
-              }
-              e.stopPropagation()
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="w-full bg-transparent text-xs font-medium text-text-primary outline-none"
-          />
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <p className="text-xs font-medium leading-snug text-text-primary">
-                {task.title}
-              </p>
-              {task.dueDate && <DueDateBadge dueDate={task.dueDate} />}
-            </div>
-            {task.description && (
-              <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-text-secondary">
-                {task.description}
-              </p>
-            )}
-          </>
-        )}
-      </article>
-
-      {!isInlineEditing && <TaskDateNotch createdAt={task.createdAt} />}
+      <KanbanTaskCard
+        task={task}
+        isInlineEditing={isInlineEditing}
+        editTitle={editTitle}
+        inputRef={inputRef}
+        onEditTitleChange={setEditTitle}
+        onSaveInlineEdit={saveInlineEdit}
+        onCancelInlineEdit={() => {
+          setEditTitle(task.title)
+          onEndInlineEdit()
+        }}
+      />
     </div>
   )
 }

@@ -4,14 +4,14 @@ interface EmptyStateProps {
 
 export function EmptyState({ label }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 px-2 py-6 text-center sm:gap-3 sm:py-10">
       <svg
-        width="72"
-        height="72"
+        width="56"
+        height="56"
+        className="opacity-70 sm:h-[4.5rem] sm:w-[4.5rem]"
         viewBox="0 0 72 72"
         fill="none"
         aria-hidden="true"
-        className="opacity-70"
       >
         <circle cx="36" cy="36" r="34" fill="var(--accent-purple)" opacity="0.25" />
         <circle cx="24" cy="28" r="10" fill="var(--accent-pink)" opacity="0.5" />
@@ -27,7 +27,9 @@ export function EmptyState({ label }: EmptyStateProps) {
           opacity="0.2"
         />
       </svg>
-      <p className="text-sm text-text-secondary">{label}</p>
+      <p className="max-w-[14rem] text-xs leading-relaxed text-text-secondary sm:max-w-none sm:text-sm">
+        {label}
+      </p>
     </div>
   )
 }

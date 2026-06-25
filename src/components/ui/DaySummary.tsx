@@ -28,12 +28,14 @@ export function DaySummary({ tasks }: DaySummaryProps) {
   return (
     <>
       <div className="summary-panel rounded-2xl px-4 py-3.5">
-        <div className="flex items-center justify-between text-sm text-text-secondary">
-          <span>{today}</span>
-          <span>{percent}% complete</span>
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <span className="font-semibold text-text-primary">{today}</span>
+          <span className="text-text-secondary">
+            <span className="font-bold text-text-primary">{percent}%</span> complete
+          </span>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 sm:flex sm:flex-wrap sm:items-center sm:gap-x-5">
           <StatItem label="To do" count={todo} accent="pink" />
           <StatItem label="In progress" count={inProgress} accent="orange" />
           <StatItem label="Done" count={done} accent="mint" />
@@ -49,7 +51,7 @@ export function DaySummary({ tasks }: DaySummaryProps) {
             <button
               type="button"
               onClick={() => setShowArchiveConfirm(true)}
-              className="glass-subtle rounded-xl px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:text-text-primary"
+              className="glass-subtle w-full rounded-xl px-3 py-2 text-xs font-medium text-text-secondary transition hover:text-text-primary sm:w-auto sm:py-1.5"
             >
               End day — archive {done} done {done === 1 ? 'task' : 'tasks'}
             </button>
@@ -89,9 +91,10 @@ function StatItem({
   }[accent]
 
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-text-secondary">
+    <span className="inline-flex items-center gap-2 text-sm">
       <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
-      {label} {count}
+      <span className="font-normal text-text-secondary">{label}</span>{' '}
+      <span className="font-bold text-text-primary">{count}</span>
     </span>
   )
 }
