@@ -2792,11 +2792,19 @@ select {
 
 .kanban-drag-overlay {
   position: fixed;
+  left: 0;
+  top: 0;
   z-index: 9999;
   width: min(18rem, 72vw);
   pointer-events: none;
-  transform: translate(-50%, -50%);
+  will-change: transform;
   filter: drop-shadow(0 16px 32px rgba(28, 27, 31, 0.18));
+}
+
+body.kanban-dragging {
+  cursor: grabbing;
+  user-select: none;
+  touch-action: none;
 }
 
 .board-scroll--dragging {
@@ -2839,36 +2847,8 @@ select {
   color: rgba(255, 255, 255, 0.65);
 }
 
-.task-card--drop-before::before {
-  content: '';
-  display: block;
-  height: 4.25rem;
-  margin-bottom: 0.75rem;
-  border-radius: 0.875rem;
-  border: 2px dashed color-mix(in srgb, var(--accent-purple) 45%, var(--glass-border));
-  background: color-mix(in srgb, var(--accent-purple) 10%, var(--bg-surface));
-  animation: drop-slot-pulse 1.2s ease-in-out infinite;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-
-@keyframes drop-slot-pulse {
-  0%,
-  100% {
-    opacity: 0.72;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 .task-card-dragging {
-  opacity: 0.28;
-  scale: 0.96;
-  filter: saturate(0.85);
-  transition:
-    opacity 180ms ease,
-    scale 180ms ease,
-    filter 180ms ease;
+  visibility: hidden;
 }
 
 .drag-overlay-card {

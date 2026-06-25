@@ -55,10 +55,15 @@ export function KanbanBoard({
   const [overColumnId, setOverColumnId] = useState<ColumnId | null>(null);
   const [overlayPos, setOverlayPos] = useState({ x: 0, y: 0 });
 
+  const activeIdRef = useRef<string | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
+  const captureElementRef = useRef<HTMLDivElement | null>(null);
   const overColumnRef = useRef<ColumnId | null>(null);
   const dragListenersRef = useRef<{
     move: (event: PointerEvent) => void;
     end: (event: PointerEvent) => void;
+    lostCapture: (event: PointerEvent) => void;
+    safetyEnd: (event: PointerEvent) => void;
   } | null>(null);
 
   const visibleTasks = useMemo(
@@ -76,7 +81,12 @@ export function KanbanBoard({
       setOverlayPos({ x, y });
 
       const columnId = findColumnAtPoint(x, y);
-      if (!columnId) return;
+      if (!columnId) {
+        setOverColumnId(null);
+        setOverId(null);
+        overColumnRef.current = null;
+        return;
+      }
 
       overColumnRef.current = columnId;
       setOverColumnId(columnId);
@@ -96,42 +106,35 @@ export function KanbanBoard({
   const removeDragListeners = useCallback(() => {
     const listeners = dragListenersRef.current;
     if (!listeners) return;
+
     window.removeEventListener("pointermove", listeners.move);
     window.removeEventListener("pointerup", listeners.end);
     window.removeEventListener("pointercancel", listeners.end);
+    document.removeEventListener("pointerup", listeners.safetyEnd, true);
+    document.removeEventListener("pointercancel", listeners.safetyEnd, true);
+    captureElementRef.current?.removeEventListener(
+      "lostpointercapture",
+      listeners.lostCapture,
+    );
     dragListenersRef.current = null;
   }, []);
 
-  const endDrag = useCallback(() => {
-    removeDragListeners();
+  const clearDragState = useCallback(() => {
+    activeIdRef.current = null;
+    pointerIdRef.current = null;
+    captureElementRef.current = null;
     overColumnRef.current = null;
     setActiveId(null);
     setOverId(null);
     setOverColumnId(null);
     setOverlayPos({ x: 0, y: 0 });
-  }, [removeDragListeners]);
+    document.body.classList.remove("kanban-dragging");
+  }, []);
 
-  useEffect(() => {
-    return () => {
-      removeDragListeners();
-    };
-  }, [removeDragListeners]);
-
-  useEffect(() => {
-    if (!activeId) return;
-
-    function cancelDrag() {
-      endDrag();
-    }
-
-    window.addEventListener("blur", cancelDrag);
-    document.addEventListener("visibilitychange", cancelDrag);
-
-    return () => {
-      window.removeEventListener("blur", cancelDrag);
-      document.removeEventListener("visibilitychange", cancelDrag);
-    };
-  }, [activeId, endDrag]);
+  const endDrag = useCallback(() => {
+    removeDragListeners();
+    clearDragState();
+  }, [clearDragState, removeDragListeners]);
 
   const commitDrop = useCallback(
     (taskId: string, x: number, y: number) => {
@@ -170,6 +173,64 @@ export function KanbanBoard({
     [dispatch],
   );
 
+  const finishDrag = useCallback(
+    (endEvent: PointerEvent) => {
+      const taskId = activeIdRef.current;
+      const pointerId = pointerIdRef.current;
+      const element = captureElementRef.current;
+      if (!taskId || pointerId === null || endEvent.pointerId !== pointerId) {
+        return;
+      }
+
+      try {
+        element?.releasePointerCapture(endEvent.pointerId);
+      } catch {
+        // Ignore if capture was never established.
+      }
+
+      commitDrop(taskId, endEvent.clientX, endEvent.clientY);
+      endDrag();
+    },
+    [commitDrop, endDrag],
+  );
+
+  useEffect(() => {
+    return () => {
+      removeDragListeners();
+      clearDragState();
+    };
+  }, [clearDragState, removeDragListeners]);
+
+  useEffect(() => {
+    if (!activeId) return;
+
+    function cancelDrag() {
+      endDrag();
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) cancelDrag();
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") cancelDrag();
+    }
+
+    window.addEventListener("blur", cancelDrag);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("keydown", handleEscape);
+    window.addEventListener("scroll", cancelDrag, true);
+    window.addEventListener("resize", cancelDrag);
+
+    return () => {
+      window.removeEventListener("blur", cancelDrag);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("scroll", cancelDrag, true);
+      window.removeEventListener("resize", cancelDrag);
+    };
+  }, [activeId, endDrag]);
+
   const handlePointerDragStart = useCallback(
     (
       taskId: string,
@@ -179,14 +240,19 @@ export function KanbanBoard({
       clientY: number,
     ) => {
       onInlineEditIdChange(null);
-      removeDragListeners();
+      endDrag();
+
+      activeIdRef.current = taskId;
+      pointerIdRef.current = pointerId;
+      captureElementRef.current = element;
 
       try {
         element.setPointerCapture(pointerId);
       } catch {
-        // Pointer capture is optional; window listeners still handle the drop.
+        // Pointer capture is optional; document/window listeners still handle the drop.
       }
 
+      document.body.classList.add("kanban-dragging");
       setActiveId(taskId);
       updateHoverTarget(clientX, clientY, taskId);
 
@@ -196,32 +262,34 @@ export function KanbanBoard({
       };
 
       const handlePointerEnd = (endEvent: PointerEvent) => {
-        if (endEvent.pointerId !== pointerId) return;
-        try {
-          element.releasePointerCapture(endEvent.pointerId);
-        } catch {
-          // Ignore if capture was never established.
-        }
-        commitDrop(taskId, endEvent.clientX, endEvent.clientY);
+        finishDrag(endEvent);
+      };
+
+      const handleLostCapture = (lostEvent: PointerEvent) => {
+        if (lostEvent.pointerId !== pointerId) return;
         endDrag();
+      };
+
+      const handleSafetyEnd = (endEvent: PointerEvent) => {
+        if (!activeIdRef.current || endEvent.pointerId !== pointerId) return;
+        finishDrag(endEvent);
       };
 
       dragListenersRef.current = {
         move: handlePointerMove,
         end: handlePointerEnd,
+        lostCapture: handleLostCapture,
+        safetyEnd: handleSafetyEnd,
       };
 
+      element.addEventListener("lostpointercapture", handleLostCapture);
       window.addEventListener("pointermove", handlePointerMove);
       window.addEventListener("pointerup", handlePointerEnd);
       window.addEventListener("pointercancel", handlePointerEnd);
+      document.addEventListener("pointerup", handleSafetyEnd, true);
+      document.addEventListener("pointercancel", handleSafetyEnd, true);
     },
-    [
-      commitDrop,
-      endDrag,
-      onInlineEditIdChange,
-      removeDragListeners,
-      updateHoverTarget,
-    ],
+    [endDrag, finishDrag, onInlineEditIdChange, updateHoverTarget],
   );
 
   function handleOpenModal(taskId: string) {
@@ -267,8 +335,7 @@ export function KanbanBoard({
           <div
             className="kanban-drag-overlay"
             style={{
-              left: overlayPos.x,
-              top: overlayPos.y,
+              transform: `translate3d(${overlayPos.x}px, ${overlayPos.y}px, 0) translate(-50%, -50%)`,
             }}
           >
             <TaskCard

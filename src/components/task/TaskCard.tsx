@@ -11,7 +11,6 @@ interface TaskCardProps {
   isDragging?: boolean
   isOverlay?: boolean
   isSelected?: boolean
-  dropBefore?: boolean
   isInlineEditing?: boolean
   onOpenModal: () => void
   onSelectTask?: () => void
@@ -31,7 +30,6 @@ export function TaskCard({
   isDragging = false,
   isOverlay = false,
   isSelected = false,
-  dropBefore = false,
   isInlineEditing = false,
   onOpenModal,
   onSelectTask,
@@ -161,7 +159,6 @@ export function TaskCard({
       onDoubleClick={handleDoubleClick}
       className={[
         'task-card',
-        dropBefore && !isOverlay && 'task-card--drop-before',
         isSelected && !isOverlay && 'task-card--selected',
         isDragging && 'task-card--dragging-touch',
         isOverlay

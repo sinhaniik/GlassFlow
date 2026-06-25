@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type RefObject } from 'react'
+import { Fragment, useState, type FormEvent, type RefObject } from 'react'
 import { useAppDispatch } from '../../app/hooks'
 import { addTask } from '../../features/kanban/kanbanSlice'
 import type { Column as ColumnType, Task } from '../../features/kanban/types'
@@ -152,21 +152,22 @@ export function Column({
           <EmptyState {...emptyState} />
         ) : (
           tasks.map((task, index) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              dropBefore={placeholderIndex === index}
-              isSelected={selectedTaskId === task.id}
-              isInlineEditing={inlineEditId === task.id}
-              isDragging={activeId === task.id}
-              onPointerDragStart={onPointerDragStart}
-              onOpenModal={() => {
-                if (inlineEditId !== task.id) onOpenModal(task.id)
-              }}
-              onSelectTask={() => onSelectTask(task.id)}
-              onStartInlineEdit={() => onStartInlineEdit(task.id)}
-              onEndInlineEdit={onEndInlineEdit}
-            />
+            <Fragment key={task.id}>
+              {placeholderIndex === index && <DropPlaceholder />}
+              <TaskCard
+                task={task}
+                isSelected={selectedTaskId === task.id}
+                isInlineEditing={inlineEditId === task.id}
+                isDragging={activeId === task.id}
+                onPointerDragStart={onPointerDragStart}
+                onOpenModal={() => {
+                  if (inlineEditId !== task.id) onOpenModal(task.id)
+                }}
+                onSelectTask={() => onSelectTask(task.id)}
+                onStartInlineEdit={() => onStartInlineEdit(task.id)}
+                onEndInlineEdit={onEndInlineEdit}
+              />
+            </Fragment>
           ))
         )}
 
