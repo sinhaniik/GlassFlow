@@ -60,6 +60,19 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
   useEffect(() => {
     if (!taskId) return
 
+    const previousOverflow = document.body.style.overflow
+    document.body.classList.add('modal-open')
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.classList.remove('modal-open')
+      document.body.style.overflow = previousOverflow
+    }
+  }, [taskId])
+
+  useEffect(() => {
+    if (!taskId) return
+
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape' && !showDeleteConfirm) {
         onClose()
@@ -122,18 +135,20 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
         <div
           role="dialog"
           aria-labelledby="task-modal-title"
-          className="modal-panel modal-enter relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl p-4 sm:max-h-[90dvh] sm:rounded-2xl sm:p-6"
+          className="modal-panel task-modal modal-enter relative flex w-full max-w-md flex-col rounded-t-2xl sm:max-h-[min(90dvh,44rem)] sm:rounded-2xl"
         >
-          <h2
-            id="task-modal-title"
-            className="text-lg font-semibold text-text-primary"
-          >
-            Edit task
-          </h2>
+          <header className="task-modal__header shrink-0 px-4 pb-3 pt-4 sm:px-6 sm:pt-6">
+            <h2
+              id="task-modal-title"
+              className="text-lg font-semibold text-text-primary"
+            >
+              Edit task
+            </h2>
+          </header>
 
-          <div className="mt-5 space-y-4">
+          <div className="task-modal__body min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Title
               </span>
               <input
@@ -149,7 +164,7 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Description
                 <span className="font-normal text-text-secondary"> (optional)</span>
               </span>
@@ -163,14 +178,14 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
             </label>
 
             <div>
-              <span className="mb-2 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Priority
               </span>
               <PriorityPicker value={priority} onChange={setPriority} />
             </div>
 
             <div>
-              <span className="mb-2 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Labels
                 <span className="font-normal text-text-secondary"> (optional)</span>
               </span>
@@ -178,7 +193,7 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
             </div>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Due date
                 <span className="font-normal text-text-secondary"> (optional)</span>
               </span>
@@ -202,7 +217,7 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Assignee
                 <span className="font-normal text-text-secondary"> (optional)</span>
               </span>
@@ -216,7 +231,7 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
             </label>
 
             <div>
-              <span className="mb-2 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Subtasks
                 <span className="font-normal text-text-secondary">
                   {' '}
@@ -227,7 +242,7 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
             </div>
 
             <div>
-              <span className="mb-2 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Attachments
                 <span className="font-normal text-text-secondary">
                   {' '}
@@ -241,7 +256,7 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
             </div>
 
             <div>
-              <span className="mb-2 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Comments
                 <span className="font-normal text-text-secondary">
                   {' '}
@@ -252,14 +267,15 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
             </div>
 
             <div>
-              <span className="mb-2 block text-xs font-semibold text-text-primary">
+              <span className="modal-field-label">
                 Accent color
               </span>
               <AccentPicker value={accent} onChange={setAccent} />
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <footer className="task-modal__footer shrink-0 border-t border-[color-mix(in_srgb,var(--glass-border)_55%,transparent)] px-4 py-4 sm:px-6">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
@@ -285,6 +301,7 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
               </button>
             </div>
           </div>
+          </footer>
         </div>
       </div>
 
