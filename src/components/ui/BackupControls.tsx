@@ -106,7 +106,7 @@ export function BackupControls() {
           onClick={handleExport}
           aria-label="Export backup"
           title="Export JSON backup"
-          className="glass-subtle rounded-xl p-2 text-text-secondary transition hover:text-text-primary"
+          className="icon-btn glass-subtle p-2 text-text-secondary hover:text-text-primary"
         >
           <DownloadIcon />
         </button>
@@ -115,7 +115,7 @@ export function BackupControls() {
           onClick={() => fileInputRef.current?.click()}
           aria-label="Import backup"
           title="Import JSON backup"
-          className="glass-subtle rounded-xl p-2 text-text-secondary transition hover:text-text-primary"
+          className="icon-btn glass-subtle p-2 text-text-secondary hover:text-text-primary"
         >
           <UploadIcon />
         </button>

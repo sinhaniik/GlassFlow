@@ -201,7 +201,15 @@ export function KanbanBoard({
 
   return (
     <>
-      <div className={`board-scroll${activeId ? " board-scroll--dragging" : ""}`}>
+      <div
+        className={[
+          "board-view-panel",
+          "board-scroll",
+          activeId && "board-scroll--dragging",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {DEFAULT_COLUMNS.map((column) => (
           <Column
             key={column.id}

@@ -51,7 +51,7 @@ export function DaySummary({ tasks }: DaySummaryProps) {
             <button
               type="button"
               onClick={() => setShowArchiveConfirm(true)}
-              className="glass-subtle w-full rounded-xl px-3 py-2 text-xs font-medium text-text-secondary transition hover:text-text-primary sm:w-auto sm:py-1.5"
+              className="pressable glass-subtle w-full rounded-xl px-3 py-2 text-xs font-medium text-text-secondary hover:text-text-primary sm:w-auto sm:py-1.5"
             >
               End day — archive {done} done {done === 1 ? 'task' : 'tasks'}
             </button>
@@ -91,10 +91,10 @@ function StatItem({
   }[accent]
 
   return (
-    <span className="inline-flex items-center gap-2 text-sm">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
-      <span className="font-normal text-text-secondary">{label}</span>{' '}
-      <span className="font-bold text-text-primary">{count}</span>
+    <span className="summary-stat">
+      <span className={`summary-stat__dot ${dotClass}`} />
+      <span>{label}</span>
+      <span className="summary-stat__count">{count}</span>
     </span>
   )
 }

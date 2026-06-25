@@ -25,7 +25,7 @@ function App() {
         onBoardFiltersChange={setBoardFilters}
       />
 
-      <main className="app-main mx-auto w-full max-w-[87.5rem] flex-1 px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
+      <main className="app-main mx-auto w-full max-w-[87.5rem] flex-1 px-3 py-5 sm:px-4 sm:py-6 lg:px-6">
         <BoardWorkspace
           boardFilters={boardFilters}
           onBoardFiltersChange={setBoardFilters}

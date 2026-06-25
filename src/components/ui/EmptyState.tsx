@@ -36,7 +36,11 @@ export function EmptyState({
       {hint && <p className="empty-state__hint">{hint}</p>}
 
       {actionLabel && onAction && (
-        <button type="button" onClick={onAction} className="empty-state__action">
+        <button
+          type="button"
+          onClick={onAction}
+          className="empty-state__action pressable"
+        >
           {actionLabel}
         </button>
       )}

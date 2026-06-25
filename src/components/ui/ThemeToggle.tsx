@@ -55,7 +55,7 @@ export function ThemeToggle() {
       type="button"
       onClick={() => dispatch(toggleTheme())}
       aria-label={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
-      className="shrink-0 rounded-xl transition duration-200 hover:scale-105 active:scale-95"
+      className="icon-btn shrink-0 p-0.5"
     >
       {isLight ? <MoonIcon /> : <SunIcon />}
     </button>

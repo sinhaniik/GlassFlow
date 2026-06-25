@@ -40,11 +40,11 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
-        className="glass-elevated relative w-full max-w-sm rounded-t-2xl p-4 sm:rounded-2xl sm:p-6"
+        className="confirm-dialog modal-enter glass-elevated relative w-full max-w-sm rounded-t-2xl p-4 sm:rounded-2xl sm:p-6"
       >
         <h3
           id="confirm-title"
-          className="text-base font-semibold text-text-primary"
+          className="text-base font-bold tracking-tight text-text-primary"
         >
           {title}
         </h3>
@@ -55,7 +55,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="glass-subtle rounded-xl px-4 py-2 text-sm font-medium text-text-primary transition hover:opacity-80"
+            className="pressable glass-subtle rounded-xl px-4 py-2 text-sm font-medium text-text-primary"
           >
             Cancel
           </button>
@@ -63,7 +63,7 @@ export function ConfirmDialog({
             ref={confirmRef}
             type="button"
             onClick={onConfirm}
-            className="rounded-xl bg-accent-pink px-4 py-2 text-sm font-medium text-text-primary transition hover:opacity-90"
+            className="pressable rounded-xl bg-accent-pink px-4 py-2 text-sm font-semibold text-text-primary shadow-sm"
           >
             {confirmLabel}
           </button>

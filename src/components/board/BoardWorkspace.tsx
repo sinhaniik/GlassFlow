@@ -140,7 +140,7 @@ export function BoardWorkspace({
   })
 
   return (
-    <>
+    <div className="board-workspace">
       <div className="board-toolbar">
         <BoardViewSwitcher value={boardView} onChange={onBoardViewChange} />
         <BoardFiltersBar
@@ -208,6 +208,6 @@ export function BoardWorkspace({
           onCancel={() => setDeleteConfirmTaskId(null)}
         />
       )}
-    </>
+    </div>
   )
 }
