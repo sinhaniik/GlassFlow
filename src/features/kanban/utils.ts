@@ -7,6 +7,7 @@ import type {
   TaskAttachment,
   TaskComment,
   TaskPriority,
+  TaskSubtask,
 } from './types'
 import { ACCENT_COLORS, TASK_PRIORITIES } from './types'
 
@@ -36,6 +37,7 @@ export function createTask(
     labels: [],
     attachments: [],
     comments: [],
+    subtasks: [],
     order,
     createdAt: now,
     updatedAt: now,
@@ -234,6 +236,45 @@ export function createComment(text: string): TaskComment | null {
   }
 }
 
+export function createSubtask(title: string): TaskSubtask | null {
+  const trimmed = title.trim()
+  if (!trimmed) return null
+  return {
+    id: crypto.randomUUID(),
+    title: trimmed,
+    done: false,
+  }
+}
+
+export function getSubtaskProgress(subtasks: TaskSubtask[] | undefined): {
+  completed: number
+  total: number
+  percent: number
+} {
+  const list = subtasks ?? []
+  const total = list.length
+  const completed = list.filter((item) => item.done).length
+  const percent = total === 0 ? 0 : Math.round((completed / total) * 100)
+  return { completed, total, percent }
+}
+
+function normalizeSubtasks(subtasks: unknown): TaskSubtask[] | undefined {
+  if (!Array.isArray(subtasks)) return undefined
+  const normalized = subtasks
+    .map((raw) => {
+      if (!raw || typeof raw !== 'object') return null
+      const item = raw as Partial<TaskSubtask>
+      if (typeof item.title !== 'string' || !item.title.trim()) return null
+      return {
+        id: typeof item.id === 'string' ? item.id : crypto.randomUUID(),
+        title: item.title.trim(),
+        done: Boolean(item.done),
+      } satisfies TaskSubtask
+    })
+    .filter((item): item is TaskSubtask => item !== null)
+  return normalized.length > 0 ? normalized.slice(0, 15) : undefined
+}
+
 function normalizeAttachments(attachments: unknown): TaskAttachment[] | undefined {
   if (!Array.isArray(attachments)) return undefined
   const normalized = attachments
@@ -375,6 +416,7 @@ export function normalizeTask(raw: Partial<Task>, index: number): Task | null {
         : undefined,
     attachments: normalizeAttachments(raw.attachments),
     comments: normalizeComments(raw.comments),
+    subtasks: normalizeSubtasks(raw.subtasks),
     order: typeof raw.order === 'number' ? raw.order : index,
     createdAt,
     updatedAt,

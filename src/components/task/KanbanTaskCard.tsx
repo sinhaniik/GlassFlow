@@ -5,6 +5,7 @@ import {
   getAttachmentDisplayLabel,
   getDueDateInfo,
   getLabelAccent,
+  getSubtaskProgress,
   getTaskPriority,
 } from '../../features/kanban/utils'
 
@@ -16,9 +17,11 @@ interface KanbanTaskCardProps {
   onEditTitleChange: (value: string) => void
   onSaveInlineEdit: () => void
   onCancelInlineEdit: () => void
+  onToggleSubtask?: (subtaskId: string) => void
 }
 
 const MAX_VISIBLE_LINKS = 2
+const MAX_VISIBLE_SUBTASKS = 4
 
 export function KanbanTaskCard({
   task,
@@ -28,12 +31,17 @@ export function KanbanTaskCard({
   onEditTitleChange,
   onSaveInlineEdit,
   onCancelInlineEdit,
+  onToggleSubtask,
 }: KanbanTaskCardProps) {
   const { label: priorityLabel, level: priorityLevel } = getTaskPriority(task)
   const dueInfo = task.dueDate ? getDueDateInfo(task.dueDate) : null
   const labels = task.labels ?? []
   const attachments = task.attachments ?? []
   const comments = task.comments ?? []
+  const subtasks = task.subtasks ?? []
+  const subtaskProgress = getSubtaskProgress(subtasks)
+  const visibleSubtasks = subtasks.slice(0, MAX_VISIBLE_SUBTASKS)
+  const hiddenSubtaskCount = subtasks.length - visibleSubtasks.length
   const latestComment =
     comments.length > 0 ? comments[comments.length - 1] : null
   const visibleLinks = attachments.slice(0, MAX_VISIBLE_LINKS)
@@ -104,6 +112,65 @@ export function KanbanTaskCard({
             </div>
           )}
 
+          {subtasks.length > 0 && (
+            <div className="kanban-card-subtasks">
+              <div className="kanban-card-progress">
+                <div className="kanban-card-progress__header">
+                  <span className="kanban-card-progress__label">Progress</span>
+                  <span className="kanban-card-progress__value">
+                    {subtaskProgress.completed}/{subtaskProgress.total}
+                  </span>
+                </div>
+                <div className="kanban-card-progress__track">
+                  <div
+                    className="kanban-card-progress__fill"
+                    style={{ width: `${subtaskProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+
+              <ul className="kanban-card-subtasks__list">
+                {visibleSubtasks.map((subtask) => (
+                  <li
+                    key={subtask.id}
+                    className={[
+                      'kanban-card-subtask',
+                      subtask.done && 'kanban-card-subtask--done',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    <button
+                      type="button"
+                      className="kanban-card-subtask__check"
+                      aria-label={
+                        subtask.done
+                          ? `Mark "${subtask.title}" incomplete`
+                          : `Mark "${subtask.title}" complete`
+                      }
+                      aria-pressed={subtask.done}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onToggleSubtask?.(subtask.id)
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      {subtask.done ? <CheckIcon /> : <EmptyCheckIcon />}
+                    </button>
+                    <span className="kanban-card-subtask__title">
+                      {subtask.title}
+                    </span>
+                  </li>
+                ))}
+                {hiddenSubtaskCount > 0 && (
+                  <li className="kanban-card-subtask kanban-card-subtask--more">
+                    +{hiddenSubtaskCount} more
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
           {attachments.length > 0 && (
             <div className="kanban-card-links">
               {visibleLinks.map((attachment) => (
@@ -162,6 +229,40 @@ export function KanbanTaskCard({
         </>
       )}
     </article>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  )
+}
+
+function EmptyCheckIcon() {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+    </svg>
   )
 }
 

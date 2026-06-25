@@ -53,6 +53,7 @@ export function matchesTaskFilters(task: Task, filters: BoardFilters): boolean {
         getAttachmentDisplayLabel(attachment),
       ]),
       ...(task.comments ?? []).map((comment) => comment.text),
+      ...(task.subtasks ?? []).map((subtask) => subtask.title),
     ]
       .join(' ')
       .toLowerCase()

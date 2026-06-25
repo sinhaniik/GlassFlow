@@ -16,6 +16,12 @@ export interface TaskComment {
   createdAt: string
 }
 
+export interface TaskSubtask {
+  id: string
+  title: string
+  done: boolean
+}
+
 export interface Task {
   id: string
   title: string
@@ -27,6 +33,7 @@ export interface Task {
   assignee?: string
   attachments?: TaskAttachment[]
   comments?: TaskComment[]
+  subtasks?: TaskSubtask[]
   order: number
   createdAt: string
   updatedAt: string

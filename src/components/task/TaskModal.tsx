@@ -6,6 +6,7 @@ import type {
   TaskAttachment,
   TaskComment,
   TaskPriority,
+  TaskSubtask,
 } from '../../features/kanban/types'
 import { AccentPicker } from '../ui/AccentPicker'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -13,6 +14,7 @@ import { LabelPicker } from '../ui/LabelPicker'
 import { PriorityPicker } from '../ui/PriorityPicker'
 import { TaskAttachmentsField } from './TaskAttachmentsField'
 import { TaskCommentsField } from './TaskCommentsField'
+import { TaskSubtasksField } from './TaskSubtasksField'
 
 interface TaskModalProps {
   taskId: string | null
@@ -32,6 +34,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
   const [labels, setLabels] = useState<string[]>([])
   const [attachments, setAttachments] = useState<TaskAttachment[]>([])
   const [comments, setComments] = useState<TaskComment[]>([])
+  const [subtasks, setSubtasks] = useState<TaskSubtask[]>([])
   const [accent, setAccent] = useState<AccentColor>('pink')
   const [priority, setPriority] = useState<TaskPriority>('low')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -46,6 +49,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
     setLabels(task.labels ?? [])
     setAttachments(task.attachments ?? [])
     setComments(task.comments ?? [])
+    setSubtasks(task.subtasks ?? [])
     setAccent(task.accent)
     setPriority(task.priority ?? 'low')
     setShowDeleteConfirm(false)
@@ -79,6 +83,7 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
         labels: labels.length > 0 ? labels : undefined,
         attachments,
         comments,
+        subtasks,
         accent,
         priority,
       }),
@@ -197,6 +202,17 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
                 className="glass-input w-full rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition"
               />
             </label>
+
+            <div>
+              <span className="mb-2 block text-xs font-semibold text-text-primary">
+                Subtasks
+                <span className="font-normal text-text-secondary">
+                  {' '}
+                  (break work into steps)
+                </span>
+              </span>
+              <TaskSubtasksField value={subtasks} onChange={setSubtasks} />
+            </div>
 
             <div>
               <span className="mb-2 block text-xs font-semibold text-text-primary">

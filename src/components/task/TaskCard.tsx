@@ -72,6 +72,19 @@ export function TaskCard({
     onEndInlineEdit()
   }
 
+  function handleToggleSubtask(subtaskId: string) {
+    const subtasks = task.subtasks ?? []
+    if (subtasks.length === 0) return
+    dispatch(
+      updateTask({
+        id: task.id,
+        subtasks: subtasks.map((item) =>
+          item.id === subtaskId ? { ...item, done: !item.done } : item,
+        ),
+      }),
+    )
+  }
+
   function handleClick() {
     if (isInlineEditing || isOverlay) return
     if (didDragRef.current) {
@@ -123,6 +136,7 @@ export function TaskCard({
           setEditTitle(task.title)
           onEndInlineEdit()
         }}
+        onToggleSubtask={handleToggleSubtask}
       />
     </div>
   )
