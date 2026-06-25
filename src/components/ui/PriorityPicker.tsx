@@ -7,13 +7,14 @@ interface PriorityPickerProps {
 }
 
 const priorityLabels: Record<TaskPriority, string> = {
-  high: 'High',
   low: 'Low',
+  medium: 'Medium',
+  high: 'High',
 }
 
 export function PriorityPicker({ value, onChange }: PriorityPickerProps) {
   return (
-    <div className="flex gap-2" role="radiogroup" aria-label="Task priority">
+    <div className="priority-picker" role="radiogroup" aria-label="Task priority">
       {TASK_PRIORITIES.map((priority) => (
         <button
           key={priority}

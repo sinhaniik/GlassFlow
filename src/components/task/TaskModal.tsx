@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { deleteTask, updateTask } from '../../features/kanban/kanbanSlice'
-import type { AccentColor, TaskPriority } from '../../features/kanban/types'
+import type {
+  AccentColor,
+  TaskAttachment,
+  TaskComment,
+  TaskPriority,
+} from '../../features/kanban/types'
 import { AccentPicker } from '../ui/AccentPicker'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { LabelPicker } from '../ui/LabelPicker'
 import { PriorityPicker } from '../ui/PriorityPicker'
+import { TaskAttachmentsField } from './TaskAttachmentsField'
+import { TaskCommentsField } from './TaskCommentsField'
 
 interface TaskModalProps {
   taskId: string | null
@@ -20,6 +28,10 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [assignee, setAssignee] = useState('')
+  const [labels, setLabels] = useState<string[]>([])
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([])
+  const [comments, setComments] = useState<TaskComment[]>([])
   const [accent, setAccent] = useState<AccentColor>('pink')
   const [priority, setPriority] = useState<TaskPriority>('low')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -30,6 +42,10 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
     setTitle(task.title)
     setDescription(task.description ?? '')
     setDueDate(task.dueDate ?? '')
+    setAssignee(task.assignee ?? '')
+    setLabels(task.labels ?? [])
+    setAttachments(task.attachments ?? [])
+    setComments(task.comments ?? [])
     setAccent(task.accent)
     setPriority(task.priority ?? 'low')
     setShowDeleteConfirm(false)
@@ -59,6 +75,10 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
         title: trimmed,
         description: description.trim() || undefined,
         dueDate: dueDate || undefined,
+        assignee: assignee.trim() || undefined,
+        labels: labels.length > 0 ? labels : undefined,
+        attachments,
+        comments,
         accent,
         priority,
       }),
@@ -113,6 +133,35 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-text-primary">
+                Description
+                <span className="font-normal text-text-secondary"> (optional)</span>
+              </span>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Add notes or details…"
+                className="glass-input w-full resize-none rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition"
+              />
+            </label>
+
+            <div>
+              <span className="mb-2 block text-xs font-semibold text-text-primary">
+                Priority
+              </span>
+              <PriorityPicker value={priority} onChange={setPriority} />
+            </div>
+
+            <div>
+              <span className="mb-2 block text-xs font-semibold text-text-primary">
+                Labels
+                <span className="font-normal text-text-secondary"> (optional)</span>
+              </span>
+              <LabelPicker value={labels} onChange={setLabels} />
+            </div>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-text-primary">
                 Due date
                 <span className="font-normal text-text-secondary"> (optional)</span>
               </span>
@@ -137,23 +186,41 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-text-primary">
-                Description
+                Assignee
                 <span className="font-normal text-text-secondary"> (optional)</span>
               </span>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                placeholder="Add notes or details…"
-                className="glass-input w-full resize-none rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition"
+              <input
+                type="text"
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value)}
+                placeholder="Who owns this task?"
+                className="glass-input w-full rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition"
               />
             </label>
 
             <div>
               <span className="mb-2 block text-xs font-semibold text-text-primary">
-                Priority
+                Attachments
+                <span className="font-normal text-text-secondary">
+                  {' '}
+                  (links to docs, blogs, etc.)
+                </span>
               </span>
-              <PriorityPicker value={priority} onChange={setPriority} />
+              <TaskAttachmentsField
+                value={attachments}
+                onChange={setAttachments}
+              />
+            </div>
+
+            <div>
+              <span className="mb-2 block text-xs font-semibold text-text-primary">
+                Comments
+                <span className="font-normal text-text-secondary">
+                  {' '}
+                  (status updates, bug notes)
+                </span>
+              </span>
+              <TaskCommentsField value={comments} onChange={setComments} />
             </div>
 
             <div>

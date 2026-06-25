@@ -2,7 +2,19 @@ export type ColumnId = 'todo' | 'in-progress' | 'done'
 
 export type AccentColor = 'pink' | 'orange' | 'purple' | 'mint'
 
-export type TaskPriority = 'high' | 'low'
+export type TaskPriority = 'low' | 'medium' | 'high'
+
+export interface TaskAttachment {
+  id: string
+  url: string
+  label?: string
+}
+
+export interface TaskComment {
+  id: string
+  text: string
+  createdAt: string
+}
 
 export interface Task {
   id: string
@@ -11,6 +23,10 @@ export interface Task {
   columnId: ColumnId
   accent: AccentColor
   priority?: TaskPriority
+  labels?: string[]
+  assignee?: string
+  attachments?: TaskAttachment[]
+  comments?: TaskComment[]
   order: number
   createdAt: string
   updatedAt: string
@@ -47,4 +63,11 @@ export const ACCENT_COLORS: AccentColor[] = [
   'mint',
 ]
 
-export const TASK_PRIORITIES: TaskPriority[] = ['high', 'low']
+export const TASK_PRIORITIES: TaskPriority[] = ['low', 'medium', 'high']
+
+export const TASK_LABEL_PRESETS = [
+  'features',
+  'bug',
+  'design',
+  'docs',
+] as const

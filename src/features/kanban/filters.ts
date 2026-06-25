@@ -1,5 +1,5 @@
 import type { Task } from './types'
-import { getDueDateInfo } from './utils'
+import { getAttachmentDisplayLabel, getDueDateInfo } from './utils'
 
 export interface BoardFilters {
   query: string
@@ -42,7 +42,20 @@ export function hasActiveFilters(filters: BoardFilters): boolean {
 export function matchesTaskFilters(task: Task, filters: BoardFilters): boolean {
   const query = filters.query.trim().toLowerCase()
   if (query) {
-    const haystack = `${task.title} ${task.description ?? ''}`.toLowerCase()
+    const haystack = [
+      task.title,
+      task.description ?? '',
+      task.assignee ?? '',
+      ...(task.labels ?? []),
+      ...(task.attachments ?? []).flatMap((attachment) => [
+        attachment.url,
+        attachment.label ?? '',
+        getAttachmentDisplayLabel(attachment),
+      ]),
+      ...(task.comments ?? []).map((comment) => comment.text),
+    ]
+      .join(' ')
+      .toLowerCase()
     if (!haystack.includes(query)) return false
   }
 
@@ -61,8 +74,9 @@ export function matchesTaskFilters(task: Task, filters: BoardFilters): boolean {
   }
 
   if (filters.labelFeatures) {
+    const hasFeaturesLabel = (task.labels ?? []).includes('features')
     const haystack = `${task.title} ${task.description ?? ''}`.toLowerCase()
-    if (!haystack.includes('feature')) return false
+    if (!hasFeaturesLabel && !haystack.includes('feature')) return false
   }
 
   return true

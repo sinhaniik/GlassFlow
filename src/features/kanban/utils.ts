@@ -4,6 +4,8 @@ import type {
   BackupData,
   ColumnId,
   Task,
+  TaskAttachment,
+  TaskComment,
   TaskPriority,
 } from './types'
 import { ACCENT_COLORS, TASK_PRIORITIES } from './types'
@@ -31,6 +33,9 @@ export function createTask(
     columnId,
     accent,
     priority: 'low',
+    labels: [],
+    attachments: [],
+    comments: [],
     order,
     createdAt: now,
     updatedAt: now,
@@ -127,12 +132,33 @@ export function formatCreatedDate(createdAt: string): {
   }
 }
 
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+}
+
 export function getTaskPriority(task: Task): {
   label: string
   level: TaskPriority
 } {
   const level = task.priority ?? 'low'
-  return { label: level === 'high' ? 'High' : 'Low', level }
+  return { label: PRIORITY_LABELS[level], level }
+}
+
+export function getAssigneeInitials(assignee: string): string {
+  const parts = assignee.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase()
+}
+
+export function getLabelAccent(label: string): AccentColor {
+  const hash = [...label.toLowerCase()].reduce(
+    (sum, char) => sum + char.charCodeAt(0),
+    0,
+  )
+  return ACCENT_COLORS[hash % ACCENT_COLORS.length]
 }
 
 export function getColumnProgress(columnId: ColumnId): number {
@@ -150,6 +176,104 @@ function normalizePriority(priority: unknown): TaskPriority {
   return TASK_PRIORITIES.includes(priority as TaskPriority)
     ? (priority as TaskPriority)
     : 'low'
+}
+
+function normalizeLabels(labels: unknown): string[] | undefined {
+  if (!Array.isArray(labels)) return undefined
+  const normalized = labels
+    .map((label) => (typeof label === 'string' ? label.trim().toLowerCase() : ''))
+    .filter(Boolean)
+  const unique = [...new Set(normalized)]
+  return unique.length > 0 ? unique.slice(0, 8) : undefined
+}
+
+export function normalizeAttachmentUrl(url: string): string | null {
+  const trimmed = url.trim()
+  if (!trimmed) return null
+  const withProtocol = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`
+  try {
+    const parsed = new URL(withProtocol)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null
+    }
+    return parsed.href
+  } catch {
+    return null
+  }
+}
+
+export function getAttachmentDisplayLabel(attachment: TaskAttachment): string {
+  if (attachment.label?.trim()) return attachment.label.trim()
+  try {
+    const host = new URL(attachment.url).hostname.replace(/^www\./, '')
+    return host || attachment.url
+  } catch {
+    return attachment.url
+  }
+}
+
+export function createAttachment(url: string, label?: string): TaskAttachment | null {
+  const normalizedUrl = normalizeAttachmentUrl(url)
+  if (!normalizedUrl) return null
+  return {
+    id: crypto.randomUUID(),
+    url: normalizedUrl,
+    label: label?.trim() || undefined,
+  }
+}
+
+export function createComment(text: string): TaskComment | null {
+  const trimmed = text.trim()
+  if (!trimmed) return null
+  return {
+    id: crypto.randomUUID(),
+    text: trimmed,
+    createdAt: new Date().toISOString(),
+  }
+}
+
+function normalizeAttachments(attachments: unknown): TaskAttachment[] | undefined {
+  if (!Array.isArray(attachments)) return undefined
+  const normalized = attachments
+    .map((raw) => {
+      if (!raw || typeof raw !== 'object') return null
+      const item = raw as Partial<TaskAttachment>
+      const url =
+        typeof item.url === 'string' ? normalizeAttachmentUrl(item.url) : null
+      if (!url) return null
+      const attachment: TaskAttachment = {
+        id: typeof item.id === 'string' ? item.id : crypto.randomUUID(),
+        url,
+      }
+      if (typeof item.label === 'string' && item.label.trim()) {
+        attachment.label = item.label.trim()
+      }
+      return attachment
+    })
+    .filter((item): item is TaskAttachment => item !== null)
+  return normalized.length > 0 ? normalized.slice(0, 10) : undefined
+}
+
+function normalizeComments(comments: unknown): TaskComment[] | undefined {
+  if (!Array.isArray(comments)) return undefined
+  const normalized = comments
+    .map((raw) => {
+      if (!raw || typeof raw !== 'object') return null
+      const item = raw as Partial<TaskComment>
+      if (typeof item.text !== 'string' || !item.text.trim()) return null
+      return {
+        id: typeof item.id === 'string' ? item.id : crypto.randomUUID(),
+        text: item.text.trim(),
+        createdAt:
+          typeof item.createdAt === 'string'
+            ? item.createdAt
+            : new Date().toISOString(),
+      } satisfies TaskComment
+    })
+    .filter((item): item is TaskComment => item !== null)
+  return normalized.length > 0 ? normalized.slice(0, 20) : undefined
 }
 
 export type DueDateStatus = 'overdue' | 'today' | 'soon' | 'later'
@@ -244,6 +368,13 @@ export function normalizeTask(raw: Partial<Task>, index: number): Task | null {
     columnId,
     accent: normalizeAccent(raw.accent, 'pink'),
     priority: normalizePriority(raw.priority),
+    labels: normalizeLabels(raw.labels),
+    assignee:
+      typeof raw.assignee === 'string' && raw.assignee.trim()
+        ? raw.assignee.trim()
+        : undefined,
+    attachments: normalizeAttachments(raw.attachments),
+    comments: normalizeComments(raw.comments),
     order: typeof raw.order === 'number' ? raw.order : index,
     createdAt,
     updatedAt,
