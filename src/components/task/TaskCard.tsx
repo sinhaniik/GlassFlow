@@ -1,62 +1,51 @@
-import {
-  defaultAnimateLayoutChanges,
-  useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useRef, useState } from 'react'
 import { useAppDispatch } from '../../app/hooks'
 import { updateTask } from '../../features/kanban/kanbanSlice'
 import type { Task } from '../../features/kanban/types'
 import { KanbanTaskCard } from './KanbanTaskCard'
 
+const DRAG_THRESHOLD = 6
+
 interface TaskCardProps {
   task: Task
   isDragging?: boolean
   isOverlay?: boolean
+  isSelected?: boolean
+  dropBefore?: boolean
   isInlineEditing?: boolean
   onOpenModal: () => void
+  onSelectTask?: () => void
   onStartInlineEdit: () => void
   onEndInlineEdit: () => void
+  onPointerDragStart?: (
+    taskId: string,
+    element: HTMLDivElement,
+    pointerId: number,
+    clientX: number,
+    clientY: number,
+  ) => void
 }
 
 export function TaskCard({
   task,
   isDragging = false,
   isOverlay = false,
+  isSelected = false,
+  dropBefore = false,
   isInlineEditing = false,
   onOpenModal,
+  onSelectTask,
   onStartInlineEdit,
   onEndInlineEdit,
+  onPointerDragStart,
 }: TaskCardProps) {
   const dispatch = useAppDispatch()
   const [editTitle, setEditTitle] = useState(task.title)
   const inputRef = useRef<HTMLInputElement>(null)
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didDragRef = useRef(false)
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging: isSortableDragging,
-  } = useSortable({
-    id: task.id,
-    disabled: isInlineEditing || isOverlay,
-    animateLayoutChanges: (args) =>
-      defaultAnimateLayoutChanges({ ...args, wasDragging: true }),
-  })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: isOverlay
-      ? undefined
-      : transition ??
-        'transform 280ms cubic-bezier(0.25, 1, 0.5, 1), opacity 200ms ease',
-  }
-
-  const dragging = isDragging || isSortableDragging
+  const cardRef = useRef<HTMLDivElement>(null)
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     if (isInlineEditing) {
@@ -66,8 +55,8 @@ export function TaskCard({
   }, [isInlineEditing, task.title])
 
   useEffect(() => {
-    if (isSortableDragging) didDragRef.current = true
-  }, [isSortableDragging])
+    if (isDragging) didDragRef.current = true
+  }, [isDragging])
 
   useEffect(() => {
     return () => {
@@ -102,11 +91,13 @@ export function TaskCard({
       didDragRef.current = false
       return
     }
+    onSelectTask?.()
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current)
     clickTimerRef.current = setTimeout(() => onOpenModal(), 220)
   }
 
-  function handleDoubleClick(e: React.MouseEvent) {
-    e.stopPropagation()
+  function handleDoubleClick(event: React.MouseEvent) {
+    event.stopPropagation()
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current)
       clickTimerRef.current = null
@@ -114,24 +105,72 @@ export function TaskCard({
     onStartInlineEdit()
   }
 
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (isInlineEditing || isOverlay || !onPointerDragStart) return
+    if (event.button !== 0) return
+
+    pointerStartRef.current = { x: event.clientX, y: event.clientY }
+    didDragRef.current = false
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      const start = pointerStartRef.current
+      if (!start || didDragRef.current) return
+
+      const moved = Math.hypot(
+        moveEvent.clientX - start.x,
+        moveEvent.clientY - start.y,
+      )
+      if (moved < DRAG_THRESHOLD) return
+
+      didDragRef.current = true
+      const element = cardRef.current
+      if (element) {
+        onPointerDragStart?.(
+          task.id,
+          element,
+          moveEvent.pointerId,
+          moveEvent.clientX,
+          moveEvent.clientY,
+        )
+      }
+      cleanup()
+    }
+
+    function cleanup() {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+      pointerStartRef.current = null
+    }
+
+    function handlePointerUp() {
+      cleanup()
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+  }
+
   return (
     <div
-      ref={isOverlay ? undefined : setNodeRef}
-      style={style}
-      {...(isOverlay || isInlineEditing ? {} : attributes)}
-      {...(isOverlay || isInlineEditing ? {} : listeners)}
+      ref={cardRef}
+      data-task-id={isOverlay ? undefined : task.id}
+      onPointerDown={handlePointerDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       className={[
         'task-card',
-        dragging && 'task-card--dragging-touch',
+        dropBefore && !isOverlay && 'task-card--drop-before',
+        isSelected && !isOverlay && 'task-card--selected',
+        isDragging && 'task-card--dragging-touch',
         isOverlay
           ? 'drag-overlay-card drag-overlay-card--active cursor-grabbing'
           : isInlineEditing
             ? 'cursor-text'
             : 'task-card-enter cursor-grab active:cursor-grabbing',
         !isOverlay && 'transition duration-200',
-        dragging && !isOverlay
+        isDragging && !isOverlay
           ? 'task-card-dragging'
           : !isOverlay && 'hover:scale-[1.01]',
       ].join(' ')}

@@ -12,6 +12,7 @@ interface TimelineViewProps {
   tasks: Task[]
   filtersActive: boolean
   onOpenTask: (taskId: string) => void
+  onCreateTask: () => void
 }
 
 interface TimelineGroup {
@@ -24,6 +25,7 @@ export function TimelineView({
   tasks,
   filtersActive,
   onOpenTask,
+  onCreateTask,
 }: TimelineViewProps) {
   const { groups, unscheduled } = useMemo(() => {
     const dated = new Map<string, Task[]>()
@@ -57,11 +59,18 @@ export function TimelineView({
     return (
       <div className="board-view-panel timeline-view">
         <EmptyState
-          label={
+          title={
             filtersActive
               ? 'No tasks match your filters'
-              : 'No tasks to show on the timeline'
+              : 'Your timeline is empty'
           }
+          hint={
+            filtersActive
+              ? 'Try clearing a filter or changing your search'
+              : 'Create a task and add a due date to see it here'
+          }
+          actionLabel={filtersActive ? undefined : '+ Create your first task'}
+          onAction={filtersActive ? undefined : onCreateTask}
         />
       </div>
     )

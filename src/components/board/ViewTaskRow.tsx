@@ -11,6 +11,7 @@ interface ViewTaskRowProps {
   onOpen: () => void
   showStatus?: boolean
   compact?: boolean
+  isSelected?: boolean
 }
 
 const columnTitle = Object.fromEntries(
@@ -22,6 +23,7 @@ export function ViewTaskRow({
   onOpen,
   showStatus = true,
   compact = false,
+  isSelected = false,
 }: ViewTaskRowProps) {
   const { label: priorityLabel, level: priorityLevel } = getTaskPriority(task)
   const subtaskProgress = getSubtaskProgress(task.subtasks)
@@ -35,6 +37,7 @@ export function ViewTaskRow({
         'view-task-row',
         `view-task-row--${task.accent}`,
         compact && 'view-task-row--compact',
+        isSelected && 'view-task-row--selected',
       ]
         .filter(Boolean)
         .join(' ')}

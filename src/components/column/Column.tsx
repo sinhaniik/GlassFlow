@@ -1,8 +1,3 @@
-import { useDroppable } from '@dnd-kit/core'
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
 import { useState, type FormEvent, type RefObject } from 'react'
 import { useAppDispatch } from '../../app/hooks'
 import { addTask } from '../../features/kanban/kanbanSlice'
@@ -35,8 +30,17 @@ interface ColumnProps {
   isDropTarget?: boolean
   inputRef?: RefObject<HTMLInputElement | null>
   onOpenModal: (taskId: string) => void
+  onSelectTask: (taskId: string) => void
+  selectedTaskId?: string | null
   onStartInlineEdit: (taskId: string) => void
   onEndInlineEdit: () => void
+  onPointerDragStart?: (
+    taskId: string,
+    element: HTMLDivElement,
+    pointerId: number,
+    clientX: number,
+    clientY: number,
+  ) => void
 }
 
 export function Column({
@@ -49,27 +53,47 @@ export function Column({
   isDropTarget = false,
   inputRef,
   onOpenModal,
+  onSelectTask,
+  selectedTaskId = null,
   onStartInlineEdit,
   onEndInlineEdit,
+  onPointerDragStart,
 }: ColumnProps) {
   const dispatch = useAppDispatch()
   const [title, setTitle] = useState('')
-  const { setNodeRef, isOver } = useDroppable({ id: column.id })
 
-  const taskIds = tasks.map((t) => t.id)
-  const highlighted = isOver || isDropTarget
+  const highlighted = isDropTarget
   const placeholderIndex = getPlaceholderIndex(
     column.id,
     tasks,
     overId,
     activeId,
   )
-  const showEmptyPlaceholder =
-    activeId !== null && isDropTarget && tasks.length === 0
+  const isDragging = activeId !== null
+  const showEmptyPlaceholder = isDragging && tasks.length === 0
   const canAddTask = column.id === 'todo'
-  const emptyLabel = canAddTask
-    ? 'Drop tasks here or add one below'
-    : 'Drop tasks here'
+
+  function focusAddInput() {
+    inputRef?.current?.focus()
+    inputRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  const emptyState = filtersActive
+    ? {
+        title: 'No tasks match your filters',
+        hint: 'Try clearing a filter or changing your search',
+      }
+    : canAddTask
+      ? {
+          title: '+ Create your first task',
+          hint: 'Press N or add one below',
+          actionLabel: '+ Create your first task',
+          onAction: focusAddInput,
+        }
+      : {
+          title: 'Drop a task here',
+          hint: 'Drag a card from another column',
+        }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -83,15 +107,19 @@ export function Column({
 
   return (
     <section
+      data-column-id={column.id}
       className={[
         'board-column flex flex-col overflow-visible rounded-xl p-3 transition duration-200 sm:rounded-2xl sm:p-4',
         `board-column--${column.id}`,
         highlighted
           ? `column-drop-active ring-2 ring-offset-2 ring-offset-bg-main ${accentRing[column.accent]}`
           : '',
-      ].join(' ')}
+        isDragging && 'board-column--drag-active',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
-      <header className="mb-4 flex shrink-0 items-center justify-between">
+      <header className="mb-4 flex shrink-0 items-center justify-between pointer-events-none">
         <div className="flex items-center gap-2">
           <span
             className={[
@@ -110,40 +138,41 @@ export function Column({
       </header>
 
       <div
-        ref={setNodeRef}
-        className="board-column__tasks flex min-h-0 flex-1 flex-col gap-3 overflow-x-visible overflow-y-auto py-1"
+        className={[
+          'board-column__tasks flex min-h-0 flex-1 flex-col gap-3 overflow-x-visible overflow-y-auto py-1',
+          isDragging && 'board-column__tasks--active-drop',
+          tasks.length === 0 && 'board-column__tasks--empty',
+        ]
+          .filter(Boolean)
+          .join(' ')}
       >
-        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          {showEmptyPlaceholder ? (
-            <DropPlaceholder />
-          ) : tasks.length === 0 ? (
-            <EmptyState
-              label={
-                filtersActive
-                  ? 'No tasks match your filters'
-                  : emptyLabel
-              }
+        {showEmptyPlaceholder ? (
+          <DropPlaceholder />
+        ) : tasks.length === 0 ? (
+          <EmptyState {...emptyState} />
+        ) : (
+          tasks.map((task, index) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              dropBefore={placeholderIndex === index}
+              isSelected={selectedTaskId === task.id}
+              isInlineEditing={inlineEditId === task.id}
+              isDragging={activeId === task.id}
+              onPointerDragStart={onPointerDragStart}
+              onOpenModal={() => {
+                if (inlineEditId !== task.id) onOpenModal(task.id)
+              }}
+              onSelectTask={() => onSelectTask(task.id)}
+              onStartInlineEdit={() => onStartInlineEdit(task.id)}
+              onEndInlineEdit={onEndInlineEdit}
             />
-          ) : (
-            tasks.map((task, index) => (
-              <div key={task.id} className="board-column__item">
-                {placeholderIndex === index && <DropPlaceholder />}
-                <TaskCard
-                  task={task}
-                  isInlineEditing={inlineEditId === task.id}
-                  onOpenModal={() => {
-                    if (inlineEditId !== task.id) onOpenModal(task.id)
-                  }}
-                  onStartInlineEdit={() => onStartInlineEdit(task.id)}
-                  onEndInlineEdit={onEndInlineEdit}
-                />
-              </div>
-            ))
-          )}
-          {placeholderIndex === tasks.length && tasks.length > 0 && (
-            <DropPlaceholder />
-          )}
-        </SortableContext>
+          ))
+        )}
+
+        {placeholderIndex === tasks.length && tasks.length > 0 && (
+          <DropPlaceholder />
+        )}
       </div>
 
       {canAddTask && (

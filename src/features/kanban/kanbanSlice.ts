@@ -5,9 +5,32 @@ import { getColumnTasks } from './utils'
 const STORAGE_KEY = 'glassflow-kanban'
 const ARCHIVE_KEY = 'glassflow-archive'
 
+interface HistorySnapshot {
+  tasks: Task[]
+  archive: ArchivedTask[]
+}
+
 interface KanbanState {
   tasks: Task[]
   archive: ArchivedTask[]
+  past: HistorySnapshot[]
+}
+
+const MAX_UNDO_HISTORY = 40
+
+function snapshotState(state: KanbanState): HistorySnapshot {
+  // JSON clone avoids Immer proxy / non-cloneable value errors in structuredClone.
+  return {
+    tasks: JSON.parse(JSON.stringify(state.tasks)) as Task[],
+    archive: JSON.parse(JSON.stringify(state.archive)) as ArchivedTask[],
+  }
+}
+
+function pushHistory(state: KanbanState) {
+  state.past.push(snapshotState(state))
+  if (state.past.length > MAX_UNDO_HISTORY) {
+    state.past.shift()
+  }
 }
 
 function normalizeTasks(tasks: Task[]): Task[] {
@@ -62,6 +85,7 @@ function reindexColumn(tasks: Task[], columnId: ColumnId) {
 const initialState: KanbanState = {
   tasks: loadTasks(),
   archive: loadArchive(),
+  past: [],
 }
 
 const kanbanSlice = createSlice({
@@ -69,11 +93,13 @@ const kanbanSlice = createSlice({
   initialState,
   reducers: {
     addTask(state, action: PayloadAction<Task>) {
+      pushHistory(state)
       state.tasks.push(action.payload)
       reindexColumn(state.tasks, action.payload.columnId)
       persistTasks(state.tasks)
     },
     updateTask(state, action: PayloadAction<Partial<Task> & { id: string }>) {
+      pushHistory(state)
       const index = state.tasks.findIndex((t) => t.id === action.payload.id)
       if (index === -1) return
       const { id: _, createdAt: __, ...updates } = action.payload
@@ -86,6 +112,7 @@ const kanbanSlice = createSlice({
       persistTasks(state.tasks)
     },
     deleteTask(state, action: PayloadAction<string>) {
+      pushHistory(state)
       const task = state.tasks.find((t) => t.id === action.payload)
       if (!task) return
       const columnId = task.columnId
@@ -93,14 +120,21 @@ const kanbanSlice = createSlice({
       reindexColumn(state.tasks, columnId)
       persistTasks(state.tasks)
     },
+    snapshotUndo(state) {
+      pushHistory(state)
+    },
     moveAndReorder(
       state,
       action: PayloadAction<{
         taskId: string
         toColumnId: ColumnId
         toIndex: number
+        recordHistory?: boolean
       }>,
     ) {
+      if (action.payload.recordHistory !== false) {
+        pushHistory(state)
+      }
       const { taskId, toColumnId, toIndex } = action.payload
       const task = state.tasks.find((t) => t.id === taskId)
       if (!task) return
@@ -126,6 +160,7 @@ const kanbanSlice = createSlice({
       persistTasks(state.tasks)
     },
     archiveDoneTasks(state) {
+      pushHistory(state)
       const doneTasks = getColumnTasks(state.tasks, 'done')
       if (doneTasks.length === 0) return
 
@@ -141,8 +176,17 @@ const kanbanSlice = createSlice({
       persistArchive(state.archive)
     },
     importBackup(state, action: PayloadAction<BackupData>) {
+      state.past = []
       state.tasks = normalizeTasks(action.payload.tasks)
       state.archive = action.payload.archive
+      persistTasks(state.tasks)
+      persistArchive(state.archive)
+    },
+    undo(state) {
+      const previous = state.past.pop()
+      if (!previous) return
+      state.tasks = previous.tasks
+      state.archive = previous.archive
       persistTasks(state.tasks)
       persistArchive(state.archive)
     },
@@ -153,8 +197,10 @@ export const {
   addTask,
   updateTask,
   deleteTask,
+  snapshotUndo,
   moveAndReorder,
   archiveDoneTasks,
   importBackup,
+  undo,
 } = kanbanSlice.actions
 export default kanbanSlice.reducer

@@ -6,6 +6,10 @@ export function KeyboardHints() {
         <span className="hidden sm:inline text-text-secondary/40">·</span>
         <Hint keys="N" label="New task" />
         <span className="hidden sm:inline text-text-secondary/40">·</span>
+        <Hint keys="Del" label="Delete task" />
+        <span className="hidden sm:inline text-text-secondary/40">·</span>
+        <Hint keys="⌘Z" label="Undo" />
+        <span className="hidden sm:inline text-text-secondary/40">·</span>
         <Hint keys="Esc" label="Close" />
         <span className="hidden sm:inline text-text-secondary/40">·</span>
         <span className="hidden sm:inline">Double-click to rename</span>

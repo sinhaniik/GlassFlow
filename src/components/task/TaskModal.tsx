@@ -19,9 +19,10 @@ import { TaskSubtasksField } from './TaskSubtasksField'
 interface TaskModalProps {
   taskId: string | null
   onClose: () => void
+  onRequestDelete?: () => void
 }
 
-export function TaskModal({ taskId, onClose }: TaskModalProps) {
+export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) {
   const dispatch = useAppDispatch()
   const task = useAppSelector((state) =>
     state.kanban.tasks.find((t) => t.id === taskId),
@@ -60,12 +61,23 @@ export function TaskModal({ taskId, onClose }: TaskModalProps) {
     if (!taskId) return
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !showDeleteConfirm) onClose()
+      if (e.key === 'Escape' && !showDeleteConfirm) {
+        onClose()
+        return
+      }
+      if (e.key === 'Delete' && !showDeleteConfirm) {
+        e.preventDefault()
+        if (onRequestDelete) {
+          onRequestDelete()
+        } else {
+          setShowDeleteConfirm(true)
+        }
+      }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [taskId, onClose, showDeleteConfirm])
+  }, [taskId, onClose, onRequestDelete, showDeleteConfirm])
 
   if (!taskId || !task) return null
 

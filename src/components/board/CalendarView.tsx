@@ -13,6 +13,7 @@ interface CalendarViewProps {
   tasks: Task[]
   filtersActive: boolean
   onOpenTask: (taskId: string) => void
+  onCreateTask: () => void
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -22,6 +23,7 @@ export function CalendarView({
   tasks,
   filtersActive,
   onOpenTask,
+  onCreateTask,
 }: CalendarViewProps) {
   const [month, setMonth] = useState(() => {
     const now = new Date()
@@ -58,11 +60,18 @@ export function CalendarView({
     return (
       <div className="board-view-panel calendar-view">
         <EmptyState
-          label={
+          title={
             filtersActive
               ? 'No tasks match your filters'
-              : 'No tasks to show on the calendar'
+              : 'No scheduled tasks yet'
           }
+          hint={
+            filtersActive
+              ? 'Try clearing a filter or changing your search'
+              : 'Add due dates to tasks or create your first one'
+          }
+          actionLabel={filtersActive ? undefined : '+ Create your first task'}
+          onAction={filtersActive ? undefined : onCreateTask}
         />
       </div>
     )

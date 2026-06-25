@@ -9,12 +9,18 @@ function isTypingTarget(target: EventTarget | null): boolean {
 interface KeyboardShortcutOptions {
   onNewTask: () => void
   onEscape: () => void
+  onDelete?: () => void
+  onUndo?: () => void
+  canUndo?: boolean
   disabled?: boolean
 }
 
 export function useKeyboardShortcuts({
   onNewTask,
   onEscape,
+  onDelete,
+  onUndo,
+  canUndo = false,
   disabled = false,
 }: KeyboardShortcutOptions) {
   useEffect(() => {
@@ -26,14 +32,28 @@ export function useKeyboardShortcuts({
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault()
         onNewTask()
+        return
       }
 
       if (e.key === 'Escape') {
         onEscape()
+        return
+      }
+
+      if (e.key === 'Delete' && onDelete) {
+        e.preventDefault()
+        onDelete()
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && onUndo) {
+        if (!canUndo) return
+        e.preventDefault()
+        onUndo()
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onNewTask, onEscape, disabled])
+  }, [onNewTask, onEscape, onDelete, onUndo, canUndo, disabled])
 }

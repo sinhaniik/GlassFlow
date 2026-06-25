@@ -1,27 +1,19 @@
-import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
-  closestCorners,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragOverEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
-import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
   filterTasks,
   hasActiveFilters,
 } from "../../features/kanban/filters";
+import {
+  findColumnAtPoint,
+  findTaskAtPoint,
+  getColumnElement,
+  resolveInsertIndex,
+} from "../../features/kanban/dnd";
 import { moveAndReorder } from "../../features/kanban/kanbanSlice";
+import type { ColumnId } from "../../features/kanban/types";
 import { DEFAULT_COLUMNS } from "../../features/kanban/types";
-import { getColumnTasks, isColumnId } from "../../features/kanban/utils";
+import { getColumnTasks } from "../../features/kanban/utils";
 import type { BoardFilters } from "../../features/kanban/filters";
 import { Column } from "../column/Column";
 import { TaskCard } from "../task/TaskCard";
@@ -29,21 +21,37 @@ import { TaskCard } from "../task/TaskCard";
 interface KanbanBoardProps {
   boardFilters: BoardFilters;
   onOpenTask: (taskId: string) => void;
-  shortcutsDisabled?: boolean;
+  onSelectTask: (taskId: string) => void;
+  selectedTaskId: string | null;
+  inlineEditId: string | null;
+  onInlineEditIdChange: (taskId: string | null) => void;
+  newTaskInputRef: RefObject<HTMLInputElement | null>;
 }
 
 export function KanbanBoard({
   boardFilters,
   onOpenTask,
-  shortcutsDisabled = false,
+  onSelectTask,
+  selectedTaskId,
+  inlineEditId,
+  onInlineEditIdChange,
+  newTaskInputRef,
 }: KanbanBoardProps) {
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.kanban.tasks);
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
-  const [overColumnId, setOverColumnId] = useState<string | null>(null);
-  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
-  const todoInputRef = useRef<HTMLInputElement>(null);
+  const [overColumnId, setOverColumnId] = useState<ColumnId | null>(null);
+  const [overlayPos, setOverlayPos] = useState({ x: 0, y: 0 });
+
+  const overColumnRef = useRef<ColumnId | null>(null);
+  const dragListenersRef = useRef<{
+    move: (event: PointerEvent) => void;
+    end: (event: PointerEvent) => void;
+  } | null>(null);
 
   const visibleTasks = useMemo(
     () => filterTasks(tasks, boardFilters),
@@ -51,169 +59,188 @@ export function KanbanBoard({
   );
   const filtersActive = hasActiveFilters(boardFilters);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 6 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
   const activeTask = activeId
-    ? tasks.find((t) => t.id === activeId)
+    ? tasks.find((task) => task.id === activeId)
     : undefined;
 
-  const handleNewTask = useCallback(() => {
-    setInlineEditId(null);
-    todoInputRef.current?.focus();
-    todoInputRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-    });
+  const updateHoverTarget = useCallback(
+    (x: number, y: number, excludeTaskId: string | null = null) => {
+      setOverlayPos({ x, y });
+
+      const columnId = findColumnAtPoint(x, y);
+      if (!columnId) return;
+
+      overColumnRef.current = columnId;
+      setOverColumnId(columnId);
+
+      const columnEl = getColumnElement(columnId);
+      if (!columnEl) {
+        setOverId(columnId);
+        return;
+      }
+
+      const taskId = findTaskAtPoint(columnEl, y, excludeTaskId);
+      setOverId(taskId ?? columnId);
+    },
+    [],
+  );
+
+  const removeDragListeners = useCallback(() => {
+    const listeners = dragListenersRef.current;
+    if (!listeners) return;
+    window.removeEventListener("pointermove", listeners.move);
+    window.removeEventListener("pointerup", listeners.end);
+    window.removeEventListener("pointercancel", listeners.end);
+    dragListenersRef.current = null;
   }, []);
 
-  const handleEscape = useCallback(() => {
-    if (inlineEditId) {
-      setInlineEditId(null);
-    }
-  }, [inlineEditId]);
-
-  useKeyboardShortcuts({
-    onNewTask: handleNewTask,
-    onEscape: handleEscape,
-    disabled: shortcutsDisabled,
-  });
-
-  function handleDragStart(event: DragStartEvent) {
-    setInlineEditId(null);
-    setActiveId(event.active.id as string);
-  }
-
-  function handleDragOver(event: DragOverEvent) {
-    const { over } = event;
-    if (!over) {
-      setOverId(null);
-      setOverColumnId(null);
-      return;
-    }
-    const nextOverId = over.id as string;
-    setOverId(nextOverId);
-    if (isColumnId(nextOverId)) {
-      setOverColumnId(nextOverId);
-    } else {
-      const overTask = tasks.find((t) => t.id === nextOverId);
-      setOverColumnId(overTask?.columnId ?? null);
-    }
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
+  const endDrag = useCallback(() => {
+    removeDragListeners();
+    overColumnRef.current = null;
     setActiveId(null);
     setOverId(null);
     setOverColumnId(null);
-    if (!over) return;
+  }, [removeDragListeners]);
 
-    const activeTaskId = active.id as string;
-    const overId = over.id as string;
-    const dragged = tasks.find((t) => t.id === activeTaskId);
-    if (!dragged) return;
+  const commitDrop = useCallback(
+    (taskId: string, x: number, y: number) => {
+      const currentTasks = tasksRef.current;
+      const dragged = currentTasks.find((task) => task.id === taskId);
+      if (!dragged) return;
 
-    let toColumnId = dragged.columnId;
-    let toIndex = 0;
+      const targetColumn =
+        findColumnAtPoint(x, y) ?? overColumnRef.current ?? dragged.columnId;
 
-    if (isColumnId(overId)) {
-      toColumnId = overId;
-      toIndex = getColumnTasks(tasks, overId).length;
-    } else {
-      const overTask = tasks.find((t) => t.id === overId);
-      if (!overTask) return;
-      toColumnId = overTask.columnId;
-      toIndex = getColumnTasks(tasks, toColumnId).findIndex(
-        (t) => t.id === overId,
+      const columnEl = getColumnElement(targetColumn);
+      const toIndex = columnEl
+        ? resolveInsertIndex(columnEl, y, taskId)
+        : getColumnTasks(currentTasks, targetColumn).length;
+
+      const fromColumnId = dragged.columnId;
+      const fromIndex = getColumnTasks(currentTasks, fromColumnId).findIndex(
+        (task) => task.id === taskId,
       );
-    }
 
-    const fromColumnId = dragged.columnId;
-    const fromIndex = getColumnTasks(tasks, fromColumnId).findIndex(
-      (t) => t.id === activeTaskId,
-    );
+      let finalIndex = toIndex;
+      if (fromColumnId === targetColumn && fromIndex < finalIndex) {
+        finalIndex -= 1;
+      }
 
-    if (fromColumnId === toColumnId && fromIndex === toIndex) return;
-    if (fromColumnId === toColumnId && fromIndex < toIndex) {
-      toIndex -= 1;
-    }
+      if (fromColumnId === targetColumn && fromIndex === finalIndex) return;
 
-    dispatch(moveAndReorder({ taskId: activeTaskId, toColumnId, toIndex }));
-  }
+      dispatch(
+        moveAndReorder({
+          taskId,
+          toColumnId: targetColumn,
+          toIndex: finalIndex,
+        }),
+      );
+    },
+    [dispatch],
+  );
 
-  function handleDragCancel() {
-    setActiveId(null);
-    setOverId(null);
-    setOverColumnId(null);
-  }
+  const handlePointerDragStart = useCallback(
+    (
+      taskId: string,
+      element: HTMLDivElement,
+      pointerId: number,
+      clientX: number,
+      clientY: number,
+    ) => {
+      onInlineEditIdChange(null);
+      removeDragListeners();
+
+      try {
+        element.setPointerCapture(pointerId);
+      } catch {
+        // Pointer capture is optional; window listeners still handle the drop.
+      }
+
+      setActiveId(taskId);
+      updateHoverTarget(clientX, clientY, taskId);
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        if (moveEvent.pointerId !== pointerId) return;
+        updateHoverTarget(moveEvent.clientX, moveEvent.clientY, taskId);
+      };
+
+      const handlePointerEnd = (endEvent: PointerEvent) => {
+        if (endEvent.pointerId !== pointerId) return;
+        try {
+          element.releasePointerCapture(endEvent.pointerId);
+        } catch {
+          // Ignore if capture was never established.
+        }
+        commitDrop(taskId, endEvent.clientX, endEvent.clientY);
+        endDrag();
+      };
+
+      dragListenersRef.current = {
+        move: handlePointerMove,
+        end: handlePointerEnd,
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerEnd);
+      window.addEventListener("pointercancel", handlePointerEnd);
+    },
+    [
+      commitDrop,
+      endDrag,
+      onInlineEditIdChange,
+      removeDragListeners,
+      updateHoverTarget,
+    ],
+  );
 
   function handleOpenModal(taskId: string) {
-    setInlineEditId(null);
+    onInlineEditIdChange(null);
+    onSelectTask(taskId);
     onOpenTask(taskId);
   }
 
   return (
     <>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        autoScroll={{
-          threshold: { x: 0.12, y: 0.18 },
-          acceleration: 14,
-          interval: 6,
-        }}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        <div className="board-scroll">
-          {DEFAULT_COLUMNS.map((column) => (
-            <Column
-              key={column.id}
-              column={column}
-              tasks={getColumnTasks(visibleTasks, column.id)}
-              filtersActive={filtersActive}
-              inlineEditId={inlineEditId}
-              activeId={activeId}
-              overId={overId}
-              isDropTarget={overColumnId === column.id && activeId !== null}
-              inputRef={column.id === "todo" ? todoInputRef : undefined}
-              onOpenModal={handleOpenModal}
-              onStartInlineEdit={setInlineEditId}
-              onEndInlineEdit={() => setInlineEditId(null)}
-            />
-          ))}
-        </div>
+      <div className={`board-scroll${activeId ? " board-scroll--dragging" : ""}`}>
+        {DEFAULT_COLUMNS.map((column) => (
+          <Column
+            key={column.id}
+            column={column}
+            tasks={getColumnTasks(visibleTasks, column.id)}
+            filtersActive={filtersActive}
+            inlineEditId={inlineEditId}
+            activeId={activeId}
+            overId={overId}
+            isDropTarget={overColumnId === column.id && activeId !== null}
+            inputRef={column.id === "todo" ? newTaskInputRef : undefined}
+            onOpenModal={handleOpenModal}
+            onSelectTask={onSelectTask}
+            selectedTaskId={selectedTaskId}
+            onStartInlineEdit={onInlineEditIdChange}
+            onEndInlineEdit={() => onInlineEditIdChange(null)}
+            onPointerDragStart={handlePointerDragStart}
+          />
+        ))}
+      </div>
 
-        <DragOverlay
-          dropAnimation={{
-            duration: 320,
-            easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      {activeTask && (
+        <div
+          className="kanban-drag-overlay"
+          style={{
+            left: overlayPos.x,
+            top: overlayPos.y,
           }}
-          style={{ cursor: "grabbing" }}
         >
-          {activeTask ? (
-            <TaskCard
-              task={activeTask}
-              isDragging
-              isOverlay
-              onOpenModal={() => { }}
-              onStartInlineEdit={() => { }}
-              onEndInlineEdit={() => { }}
-            />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          <TaskCard
+            task={activeTask}
+            isDragging
+            isOverlay
+            onOpenModal={() => {}}
+            onStartInlineEdit={() => {}}
+            onEndInlineEdit={() => {}}
+          />
+        </div>
+      )}
     </>
   );
 }

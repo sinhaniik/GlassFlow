@@ -7,21 +7,38 @@ import { ViewTaskRow } from './ViewTaskRow'
 interface ListViewProps {
   tasks: Task[]
   filtersActive: boolean
+  selectedTaskId?: string | null
   onOpenTask: (taskId: string) => void
+  onSelectTask: (taskId: string) => void
+  onCreateTask: () => void
 }
 
-export function ListView({ tasks, filtersActive, onOpenTask }: ListViewProps) {
+export function ListView({
+  tasks,
+  filtersActive,
+  selectedTaskId = null,
+  onOpenTask,
+  onSelectTask,
+  onCreateTask,
+}: ListViewProps) {
   const hasTasks = tasks.length > 0
 
   if (!hasTasks) {
     return (
       <div className="board-view-panel list-view">
         <EmptyState
-          label={
+          title={
             filtersActive
               ? 'No tasks match your filters'
-              : 'No tasks yet — add one in Kanban view'
+              : '+ Create your first task'
           }
+          hint={
+            filtersActive
+              ? 'Try clearing a filter or changing your search'
+              : 'Press N to jump to the board and add a task'
+          }
+          actionLabel={filtersActive ? undefined : '+ Create your first task'}
+          onAction={filtersActive ? undefined : onCreateTask}
         />
       </div>
     )
@@ -63,7 +80,11 @@ export function ListView({ tasks, filtersActive, onOpenTask }: ListViewProps) {
                   key={task.id}
                   task={task}
                   showStatus={false}
-                  onOpen={() => onOpenTask(task.id)}
+                  isSelected={selectedTaskId === task.id}
+                  onOpen={() => {
+                    onSelectTask(task.id)
+                    onOpenTask(task.id)
+                  }}
                 />
               ))}
             </div>
