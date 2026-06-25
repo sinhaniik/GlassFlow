@@ -40,7 +40,7 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
-        className="confirm-dialog modal-enter glass-elevated relative w-full max-w-sm rounded-t-2xl p-4 sm:rounded-2xl sm:p-6"
+        className="confirm-dialog modal-panel modal-enter relative w-full max-w-sm rounded-t-2xl p-4 sm:rounded-2xl sm:p-6"
       >
         <h3
           id="confirm-title"

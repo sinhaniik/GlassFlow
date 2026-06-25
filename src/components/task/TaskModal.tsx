@@ -122,7 +122,7 @@ export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) 
         <div
           role="dialog"
           aria-labelledby="task-modal-title"
-          className="glass-elevated modal-enter relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl p-4 sm:max-h-[90dvh] sm:rounded-2xl sm:p-6"
+          className="modal-panel modal-enter relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl p-4 sm:max-h-[90dvh] sm:rounded-2xl sm:p-6"
         >
           <h2
             id="task-modal-title"
