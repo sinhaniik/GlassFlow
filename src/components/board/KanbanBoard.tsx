@@ -12,17 +12,31 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import {
+  filterTasks,
+  hasActiveFilters,
+} from "../../features/kanban/filters";
 import { moveAndReorder } from "../../features/kanban/kanbanSlice";
 import { DEFAULT_COLUMNS } from "../../features/kanban/types";
 import { getColumnTasks, isColumnId } from "../../features/kanban/utils";
+import { BoardFiltersBar } from "../ui/BoardFilters";
+import type { BoardFilters } from "../../features/kanban/filters";
 import { Column } from "../column/Column";
 import { TaskCard } from "../task/TaskCard";
 import { TaskModal } from "../task/TaskModal";
 
-export function KanbanBoard() {
+interface KanbanBoardProps {
+  boardFilters: BoardFilters;
+  onBoardFiltersChange: (filters: BoardFilters) => void;
+}
+
+export function KanbanBoard({
+  boardFilters,
+  onBoardFiltersChange,
+}: KanbanBoardProps) {
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.kanban.tasks);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -30,6 +44,12 @@ export function KanbanBoard() {
   const [modalTaskId, setModalTaskId] = useState<string | null>(null);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const todoInputRef = useRef<HTMLInputElement>(null);
+
+  const visibleTasks = useMemo(
+    () => filterTasks(tasks, boardFilters),
+    [tasks, boardFilters],
+  );
+  const filtersActive = hasActiveFilters(boardFilters);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -148,6 +168,13 @@ export function KanbanBoard() {
 
   return (
     <>
+      <BoardFiltersBar
+        filters={boardFilters}
+        onChange={onBoardFiltersChange}
+        resultCount={visibleTasks.length}
+        totalCount={tasks.length}
+      />
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -161,7 +188,8 @@ export function KanbanBoard() {
             <Column
               key={column.id}
               column={column}
-              tasks={getColumnTasks(tasks, column.id)}
+              tasks={getColumnTasks(visibleTasks, column.id)}
+              filtersActive={filtersActive}
               inlineEditId={inlineEditId}
               isDropTarget={overColumnId === column.id && activeId !== null}
               inputRef={column.id === "todo" ? todoInputRef : undefined}

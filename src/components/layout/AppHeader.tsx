@@ -1,9 +1,19 @@
 import { useAppSelector } from '../../app/hooks'
+import type { BoardFilters } from '../../features/kanban/filters'
 import { BackupControls } from '../ui/BackupControls'
 import { DaySummary } from '../ui/DaySummary'
+import { HeaderSearch } from '../ui/HeaderSearch'
 import { ThemeToggle } from '../ui/ThemeToggle'
 
-export function AppHeader() {
+interface AppHeaderProps {
+  boardFilters: BoardFilters
+  onBoardFiltersChange: (filters: BoardFilters) => void
+}
+
+export function AppHeader({
+  boardFilters,
+  onBoardFiltersChange,
+}: AppHeaderProps) {
   const tasks = useAppSelector((state) => state.kanban.tasks)
 
   return (
@@ -17,7 +27,13 @@ export function AppHeader() {
             Your daily work kanban
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <HeaderSearch
+            query={boardFilters.query}
+            onQueryChange={(query) =>
+              onBoardFiltersChange({ ...boardFilters, query })
+            }
+          />
           <BackupControls />
           <ThemeToggle />
         </div>

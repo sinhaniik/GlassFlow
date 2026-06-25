@@ -2,6 +2,8 @@ export function KeyboardHints() {
   return (
     <footer className="mx-auto w-full max-w-[87.5rem] px-3 pb-3 sm:pb-4 lg:px-6">
       <div className="glass-card flex flex-wrap items-center justify-center gap-x-4 gap-y-1 rounded-xl px-4 py-2.5 text-xs text-text-secondary">
+        <Hint keys="⌘K" label="Search" />
+        <span className="hidden sm:inline text-text-secondary/40">·</span>
         <Hint keys="N" label="New task" />
         <span className="hidden sm:inline text-text-secondary/40">·</span>
         <Hint keys="Esc" label="Close" />

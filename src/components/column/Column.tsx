@@ -15,6 +15,7 @@ interface ColumnProps {
   column: ColumnType
   tasks: Task[]
   inlineEditId: string | null
+  filtersActive?: boolean
   isDropTarget?: boolean
   inputRef?: RefObject<HTMLInputElement | null>
   onOpenModal: (taskId: string) => void
@@ -26,6 +27,7 @@ export function Column({
   column,
   tasks,
   inlineEditId,
+  filtersActive = false,
   isDropTarget = false,
   inputRef,
   onOpenModal,
@@ -87,7 +89,13 @@ export function Column({
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.length === 0 ? (
-            <EmptyState label={emptyLabel} />
+            <EmptyState
+              label={
+                filtersActive
+                  ? 'No tasks match your filters'
+                  : emptyLabel
+              }
+            />
           ) : (
             tasks.map((task) => (
               <TaskCard
