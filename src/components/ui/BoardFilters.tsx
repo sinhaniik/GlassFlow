@@ -257,13 +257,13 @@ export function BoardFiltersBar({
             Clear filters
           </button>
         )}
-      </div>
 
-      {active && (
-        <p className="board-search__results" aria-live="polite">
-          Showing <strong>{resultCount}</strong> of {totalCount} tasks
-        </p>
-      )}
+        {active && (
+          <p className="board-search__results" aria-live="polite">
+            Showing <strong>{resultCount}</strong> of {totalCount} tasks
+          </p>
+        )}
+      </div>
     </section>
   )
 }
@@ -271,8 +271,8 @@ export function BoardFiltersBar({
 function FilterIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="12"
+      height="12"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -289,8 +289,8 @@ function FilterIcon() {
 function CloseIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="12"
+      height="12"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
