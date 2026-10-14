@@ -1,354 +1,217 @@
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
-import { createPortal } from "react-dom";
-import { useAppDispatch, useAppSelector } from "../../app/hooks";
-import {
-  filterTasks,
-  hasActiveFilters,
-} from "../../features/kanban/filters";
-import {
-  findColumnAtPoint,
-  findTaskAtPoint,
-  getColumnElement,
-  resolveInsertIndex,
-} from "../../features/kanban/dnd";
-import { moveAndReorder } from "../../features/kanban/kanbanSlice";
-import type { ColumnId } from "../../features/kanban/types";
-import { DEFAULT_COLUMNS } from "../../features/kanban/types";
-import { getColumnTasks } from "../../features/kanban/utils";
-import type { BoardFilters } from "../../features/kanban/filters";
-import { Column } from "../column/Column";
-import { TaskCard } from "../task/TaskCard";
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+  type DragMoveEvent,
+  type DragOverEvent,
+} from '@dnd-kit/core'
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { useAppDispatch, useAppSelector } from '../../app/hooks'
+import { moveAndReorder } from '../../features/kanban/kanbanSlice'
+import { DEFAULT_COLUMNS } from '../../features/kanban/types'
+import type { ColumnId, Task } from '../../features/kanban/types'
+import { getColumnTasks, getInsertIndex, isColumnId } from '../../features/kanban/utils'
+import { Column } from '../column/Column'
+import { TaskCard } from '../task/TaskCard'
 
 interface KanbanBoardProps {
-  boardFilters: BoardFilters;
-  onOpenTask: (taskId: string) => void;
-  onSelectTask: (taskId: string) => void;
-  selectedTaskId: string | null;
-  inlineEditId: string | null;
-  onInlineEditIdChange: (taskId: string | null) => void;
-  newTaskInputRef: RefObject<HTMLInputElement | null>;
+  onCreateTask: (columnId?: ColumnId) => void
+  onEditTask: (task: Task) => void
+  query: string
 }
 
-export function KanbanBoard({
-  boardFilters,
-  onOpenTask,
-  onSelectTask,
-  selectedTaskId,
-  inlineEditId,
-  onInlineEditIdChange,
-  newTaskInputRef,
-}: KanbanBoardProps) {
-  const dispatch = useAppDispatch();
-  const tasks = useAppSelector((state) => state.kanban.tasks);
-  const tasksRef = useRef(tasks);
-  tasksRef.current = tasks;
+interface DropPosition {
+  columnId: ColumnId
+  index: number
+  top: number
+  beforeTaskId: string | null
+  afterTaskId: string | null
+}
 
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
-  const [overColumnId, setOverColumnId] = useState<ColumnId | null>(null);
-  const [overlayPos, setOverlayPos] = useState({ x: 0, y: 0 });
-
-  const activeIdRef = useRef<string | null>(null);
-  const pointerIdRef = useRef<number | null>(null);
-  const captureElementRef = useRef<HTMLDivElement | null>(null);
-  const overColumnRef = useRef<ColumnId | null>(null);
-  const dragListenersRef = useRef<{
-    move: (event: PointerEvent) => void;
-    end: (event: PointerEvent) => void;
-    lostCapture: (event: PointerEvent) => void;
-    safetyEnd: (event: PointerEvent) => void;
-  } | null>(null);
-
-  const visibleTasks = useMemo(
-    () => filterTasks(tasks, boardFilters),
-    [tasks, boardFilters],
-  );
-  const filtersActive = hasActiveFilters(boardFilters);
-
-  const activeTask = activeId
-    ? tasks.find((task) => task.id === activeId)
-    : undefined;
-
-  const updateHoverTarget = useCallback(
-    (x: number, y: number, excludeTaskId: string | null = null) => {
-      setOverlayPos({ x, y });
-
-      const columnId = findColumnAtPoint(x, y);
-      if (!columnId) {
-        setOverColumnId(null);
-        setOverId(null);
-        overColumnRef.current = null;
-        return;
-      }
-
-      overColumnRef.current = columnId;
-      setOverColumnId(columnId);
-
-      const columnEl = getColumnElement(columnId);
-      if (!columnEl) {
-        setOverId(columnId);
-        return;
-      }
-
-      const taskId = findTaskAtPoint(columnEl, y, excludeTaskId);
-      setOverId(taskId ?? columnId);
-    },
-    [],
-  );
-
-  const removeDragListeners = useCallback(() => {
-    const listeners = dragListenersRef.current;
-    if (!listeners) return;
-
-    window.removeEventListener("pointermove", listeners.move);
-    window.removeEventListener("pointerup", listeners.end);
-    window.removeEventListener("pointercancel", listeners.end);
-    document.removeEventListener("pointerup", listeners.safetyEnd, true);
-    document.removeEventListener("pointercancel", listeners.safetyEnd, true);
-    captureElementRef.current?.removeEventListener(
-      "lostpointercapture",
-      listeners.lostCapture,
-    );
-    dragListenersRef.current = null;
-  }, []);
-
-  const clearDragState = useCallback(() => {
-    activeIdRef.current = null;
-    pointerIdRef.current = null;
-    captureElementRef.current = null;
-    overColumnRef.current = null;
-    setActiveId(null);
-    setOverId(null);
-    setOverColumnId(null);
-    setOverlayPos({ x: 0, y: 0 });
-    document.body.classList.remove("kanban-dragging");
-  }, []);
-
-  const endDrag = useCallback(() => {
-    removeDragListeners();
-    clearDragState();
-  }, [clearDragState, removeDragListeners]);
-
-  const commitDrop = useCallback(
-    (taskId: string, x: number, y: number) => {
-      const currentTasks = tasksRef.current;
-      const dragged = currentTasks.find((task) => task.id === taskId);
-      if (!dragged) return;
-
-      const targetColumn =
-        findColumnAtPoint(x, y) ?? overColumnRef.current ?? dragged.columnId;
-
-      const columnEl = getColumnElement(targetColumn);
-      const toIndex = columnEl
-        ? resolveInsertIndex(columnEl, y, taskId)
-        : getColumnTasks(currentTasks, targetColumn).length;
-
-      const fromColumnId = dragged.columnId;
-      const fromIndex = getColumnTasks(currentTasks, fromColumnId).findIndex(
-        (task) => task.id === taskId,
-      );
-
-      let finalIndex = toIndex;
-      if (fromColumnId === targetColumn && fromIndex < finalIndex) {
-        finalIndex -= 1;
-      }
-
-      if (fromColumnId === targetColumn && fromIndex === finalIndex) return;
-
-      dispatch(
-        moveAndReorder({
-          taskId,
-          toColumnId: targetColumn,
-          toIndex: finalIndex,
-        }),
-      );
-    },
-    [dispatch],
-  );
-
-  const finishDrag = useCallback(
-    (endEvent: PointerEvent) => {
-      const taskId = activeIdRef.current;
-      const pointerId = pointerIdRef.current;
-      const element = captureElementRef.current;
-      if (!taskId || pointerId === null || endEvent.pointerId !== pointerId) {
-        return;
-      }
-
-      try {
-        element?.releasePointerCapture(endEvent.pointerId);
-      } catch {
-        // Ignore if capture was never established.
-      }
-
-      commitDrop(taskId, endEvent.clientX, endEvent.clientY);
-      endDrag();
-    },
-    [commitDrop, endDrag],
-  );
-
-  useEffect(() => {
-    return () => {
-      removeDragListeners();
-      clearDragState();
-    };
-  }, [clearDragState, removeDragListeners]);
-
-  useEffect(() => {
-    if (!activeId) return;
-
-    function cancelDrag() {
-      endDrag();
-    }
-
-    function handleVisibilityChange() {
-      if (document.hidden) cancelDrag();
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") cancelDrag();
-    }
-
-    window.addEventListener("blur", cancelDrag);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("keydown", handleEscape);
-    window.addEventListener("scroll", cancelDrag, true);
-    window.addEventListener("resize", cancelDrag);
-
-    return () => {
-      window.removeEventListener("blur", cancelDrag);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("keydown", handleEscape);
-      window.removeEventListener("scroll", cancelDrag, true);
-      window.removeEventListener("resize", cancelDrag);
-    };
-  }, [activeId, endDrag]);
-
-  const handlePointerDragStart = useCallback(
-    (
-      taskId: string,
-      element: HTMLDivElement,
-      pointerId: number,
-      clientX: number,
-      clientY: number,
-    ) => {
-      onInlineEditIdChange(null);
-      endDrag();
-
-      activeIdRef.current = taskId;
-      pointerIdRef.current = pointerId;
-      captureElementRef.current = element;
-
-      try {
-        element.setPointerCapture(pointerId);
-      } catch {
-        // Pointer capture is optional; document/window listeners still handle the drop.
-      }
-
-      document.body.classList.add("kanban-dragging");
-      setActiveId(taskId);
-      updateHoverTarget(clientX, clientY, taskId);
-
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-        if (moveEvent.pointerId !== pointerId) return;
-        updateHoverTarget(moveEvent.clientX, moveEvent.clientY, taskId);
-      };
-
-      const handlePointerEnd = (endEvent: PointerEvent) => {
-        finishDrag(endEvent);
-      };
-
-      const handleLostCapture = (lostEvent: PointerEvent) => {
-        if (lostEvent.pointerId !== pointerId) return;
-        endDrag();
-      };
-
-      const handleSafetyEnd = (endEvent: PointerEvent) => {
-        if (!activeIdRef.current || endEvent.pointerId !== pointerId) return;
-        finishDrag(endEvent);
-      };
-
-      dragListenersRef.current = {
-        move: handlePointerMove,
-        end: handlePointerEnd,
-        lostCapture: handleLostCapture,
-        safetyEnd: handleSafetyEnd,
-      };
-
-      element.addEventListener("lostpointercapture", handleLostCapture);
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerEnd);
-      window.addEventListener("pointercancel", handlePointerEnd);
-      document.addEventListener("pointerup", handleSafetyEnd, true);
-      document.addEventListener("pointercancel", handleSafetyEnd, true);
-    },
-    [endDrag, finishDrag, onInlineEditIdChange, updateHoverTarget],
-  );
-
-  function handleOpenModal(taskId: string) {
-    onInlineEditIdChange(null);
-    onSelectTask(taskId);
-    onOpenTask(taskId);
+function getPointerY(activatorEvent: Event, deltaY: number): number | null {
+  if ('clientY' in activatorEvent && typeof activatorEvent.clientY === 'number') {
+    return activatorEvent.clientY + deltaY
   }
+  if ('touches' in activatorEvent) {
+    const touchEvent = activatorEvent as TouchEvent
+    const touch = touchEvent.touches[0] ?? touchEvent.changedTouches[0]
+    return touch ? touch.clientY + deltaY : null
+  }
+  return null
+}
+
+export function KanbanBoard({ onCreateTask, onEditTask, query }: KanbanBoardProps) {
+  const dispatch = useAppDispatch()
+  const tasks = useAppSelector((state) => state.kanban.tasks)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [dropPosition, setDropPosition] = useState<DropPosition | null>(null)
+  const overIdRef = useRef<string | null>(null)
+  const pointerYRef = useRef<number | null>(null)
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const columns = useMemo(
+    () => {
+      const normalizedQuery = query.trim().toLocaleLowerCase()
+      return DEFAULT_COLUMNS.map((column) => ({
+        ...column,
+        tasks: getColumnTasks(tasks, column.id).filter((task) =>
+          !normalizedQuery || `${task.title} ${task.description ?? ''}`.toLocaleLowerCase().includes(normalizedQuery),
+        ),
+      }))
+    },
+    [tasks, query],
+  )
+  const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
+  const activeTask = activeId ? taskById.get(activeId) : undefined
+
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    const pointerHits = pointerWithin(args)
+    if (pointerHits.length === 0) return closestCenter(args)
+    const taskHits = pointerHits.filter(({ id }) => taskById.has(String(id)))
+    return taskHits.length ? taskHits : pointerHits
+  }, [taskById])
+
+  const measureDropPosition = useCallback((columnId: ColumnId, draggedId: string, pointerY: number) => {
+    const columnElement = document.querySelector<HTMLElement>(`.board-column[data-column-id="${columnId}"]`)
+    const listElement = columnElement?.querySelector<HTMLElement>('.column-tasks')
+    if (!listElement) return null
+    const listRect = listElement.getBoundingClientRect()
+    const cards = Array.from(listElement.querySelectorAll<HTMLElement>('.task-card[data-task-id]'))
+      .filter((card) => card.dataset.taskId !== draggedId)
+      .map((card) => ({ id: card.dataset.taskId ?? '', rect: card.getBoundingClientRect() }))
+      .sort((a, b) => a.rect.top - b.rect.top)
+    const cardRects = cards.map(({ rect }) => rect)
+    const index = getInsertIndex(pointerY, cardRects)
+    const top = cardRects.length === 0
+      ? 12
+      : index < cardRects.length
+        ? cardRects[index].top - listRect.top
+        : cardRects[cardRects.length - 1].bottom - listRect.top + 6
+    return {
+      columnId,
+      index,
+      top,
+      beforeTaskId: cards[index]?.id ?? null,
+      afterTaskId: index === cards.length ? cards.at(-1)?.id ?? null : null,
+    }
+  }, [])
+
+  const updateDropPosition = useCallback((next: DropPosition | null) => {
+    setDropPosition((current) => {
+      if (current && next && current.columnId === next.columnId && current.index === next.index &&
+          Math.abs(current.top - next.top) < 1) return current
+      return next
+    })
+  }, [])
+
+  const finishDrag = useCallback(({ active, over, activatorEvent, delta }: DragEndEvent) => {
+    setActiveId(null)
+    overIdRef.current = null
+    if (!over) { updateDropPosition(null); return }
+    const task = taskById.get(String(active.id))
+    if (!task) { updateDropPosition(null); return }
+    const targetTask = taskById.get(String(over.id))
+    const targetColumn = targetTask?.columnId ??
+      (isColumnId(over.id) ? over.id : task.columnId)
+    const allTasks = Array.from(taskById.values())
+    const destination = getColumnTasks(allTasks, targetColumn).filter(({ id }) => id !== task.id)
+    const pointerY = getPointerY(activatorEvent, delta.y)
+    const measured = pointerY === null ? null : measureDropPosition(targetColumn, task.id, pointerY)
+    let targetIndex = destination.length
+    if (measured) {
+      if (measured.beforeTaskId) {
+        targetIndex = Math.max(0, destination.findIndex(({ id }) => id === measured.beforeTaskId))
+      } else if (measured.afterTaskId) {
+        targetIndex = destination.findIndex(({ id }) => id === measured.afterTaskId) + 1
+      }
+    } else if (targetTask) {
+      targetIndex = destination.findIndex(({ id }) => id === targetTask.id)
+      if (task.columnId === targetColumn && getColumnTasks(allTasks, task.columnId).findIndex(({ id }) => id === task.id) < targetIndex) {
+        targetIndex += 1
+      }
+    } else if (targetColumn !== task.columnId) {
+      targetIndex = 0
+    }
+    updateDropPosition(null)
+    dispatch(moveAndReorder({
+      taskId: task.id,
+      toColumnId: targetColumn,
+      toIndex: targetIndex,
+    }))
+  }, [dispatch, measureDropPosition, taskById, updateDropPosition])
+
+  const trackOver = useCallback(({ over }: DragOverEvent) => {
+    const nextId = over ? String(over.id) : null
+    overIdRef.current = nextId
+    if (!nextId || pointerYRef.current === null) { updateDropPosition(null); return }
+    const task = taskById.get(nextId)
+    const columnId = task?.columnId ?? (isColumnId(nextId) ? nextId : null)
+    updateDropPosition(columnId ? measureDropPosition(columnId, activeId ?? '', pointerYRef.current) : null)
+  }, [activeId, measureDropPosition, taskById, updateDropPosition])
+
+  const trackDragMove = useCallback(({ delta, activatorEvent }: DragMoveEvent) => {
+    const pointerY = getPointerY(activatorEvent, delta.y)
+    pointerYRef.current = pointerY
+    const currentOverId = overIdRef.current
+    const task = currentOverId ? taskById.get(currentOverId) : undefined
+    const columnId = task?.columnId ?? (currentOverId && isColumnId(currentOverId) ? currentOverId : null)
+    updateDropPosition(pointerY === null || !columnId || !activeId
+      ? null
+      : measureDropPosition(columnId, activeId, pointerY))
+  }, [activeId, measureDropPosition, taskById, updateDropPosition])
+
+  const startDrag = useCallback(({ active }: { active: { id: string | number } }) => {
+    setActiveId(String(active.id))
+    overIdRef.current = null
+    pointerYRef.current = null
+    updateDropPosition(null)
+    if (navigator.vibrate) navigator.vibrate(10)
+  }, [updateDropPosition])
+
+  const cancelDrag = useCallback(() => {
+    setActiveId(null)
+    overIdRef.current = null
+    pointerYRef.current = null
+    updateDropPosition(null)
+  }, [updateDropPosition])
 
   return (
-    <>
-      <div
-        className={[
-          "board-view-panel",
-          "board-scroll",
-          activeId && "board-scroll--dragging",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        {DEFAULT_COLUMNS.map((column) => (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisionDetection}
+      onDragStart={startDrag}
+      onDragOver={trackOver}
+      onDragMove={trackDragMove}
+      onDragCancel={cancelDrag}
+      onDragEnd={finishDrag}
+    >
+      <div id="board" className="board-grid" aria-label="Kanban board">
+        {columns.map(({ tasks: columnTasks, ...column }) => (
           <Column
             key={column.id}
             column={column}
-            tasks={getColumnTasks(visibleTasks, column.id)}
-            filtersActive={filtersActive}
-            inlineEditId={inlineEditId}
-            activeId={activeId}
-            overId={overId}
-            isDropTarget={overColumnId === column.id && activeId !== null}
-            inputRef={column.id === "todo" ? newTaskInputRef : undefined}
-            onOpenModal={handleOpenModal}
-            onSelectTask={onSelectTask}
-            selectedTaskId={selectedTaskId}
-            onStartInlineEdit={onInlineEditIdChange}
-            onEndInlineEdit={() => onInlineEditIdChange(null)}
-            onPointerDragStart={handlePointerDragStart}
+            tasks={columnTasks}
+            dropPosition={dropPosition?.columnId === column.id ? dropPosition : null}
+            onCreateTask={onCreateTask}
+            onEditTask={onEditTask}
           />
         ))}
       </div>
-
-      {activeTask &&
-        createPortal(
-          <div
-            className="kanban-drag-overlay"
-            style={{
-              transform: `translate3d(${overlayPos.x}px, ${overlayPos.y}px, 0) translate(-50%, -50%)`,
-            }}
-          >
-            <TaskCard
-              task={activeTask}
-              isDragging
-              isOverlay
-              onOpenModal={() => {}}
-              onStartInlineEdit={() => {}}
-              onEndInlineEdit={() => {}}
-            />
-          </div>,
-          document.body,
-        )}
-    </>
-  );
+      <DragOverlay dropAnimation={null}>
+        {activeTask ? <TaskCard task={activeTask} isOverlay onEdit={onEditTask} /> : null}
+      </DragOverlay>
+    </DndContext>
+  )
 }

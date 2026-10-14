@@ -1,127 +1,71 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import type { ArchivedTask, BackupData, ColumnId, Task } from './types'
-import { getColumnTasks } from './utils'
+import type { ColumnId, Task } from './types.ts'
+import { getColumnTasks, isValidDateOnly, moveTask, normalizeTask } from './utils.ts'
 
 const STORAGE_KEY = 'glassflow-kanban'
-const ARCHIVE_KEY = 'glassflow-archive'
-
-interface HistorySnapshot {
-  tasks: Task[]
-  archive: ArchivedTask[]
-}
-
-interface KanbanState {
-  tasks: Task[]
-  archive: ArchivedTask[]
-  past: HistorySnapshot[]
-}
-
-const MAX_UNDO_HISTORY = 40
-
-function snapshotState(state: KanbanState): HistorySnapshot {
-  // JSON clone avoids Immer proxy / non-cloneable value errors in structuredClone.
-  return {
-    tasks: JSON.parse(JSON.stringify(state.tasks)) as Task[],
-    archive: JSON.parse(JSON.stringify(state.archive)) as ArchivedTask[],
-  }
-}
-
-function pushHistory(state: KanbanState) {
-  state.past.push(snapshotState(state))
-  if (state.past.length > MAX_UNDO_HISTORY) {
-    state.past.shift()
-  }
-}
-
-function normalizeTasks(tasks: Task[]): Task[] {
-  const columns: ColumnId[] = ['todo', 'in-progress', 'done']
-  return columns.flatMap((columnId) =>
-    getColumnTasks(
-      tasks.map((t, i) => ({ ...t, order: t.order ?? i })),
-      columnId,
-    ).map((task, index) => ({ ...task, order: index })),
-  )
-}
 
 function loadTasks(): Task[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
-    const parsed = JSON.parse(raw) as Task[]
+    const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return normalizeTasks(parsed)
+
+    const seenIds = new Set<string>()
+    const tasks = parsed
+      .map((task, index) => normalizeTask(task, index))
+      .filter((task): task is Task => {
+        if (!task || seenIds.has(task.id)) return false
+        seenIds.add(task.id)
+        return true
+      })
+
+    return (['todo', 'in-progress', 'done'] as const).flatMap((columnId) =>
+      getColumnTasks(tasks, columnId).map((task, order) => ({ ...task, order })),
+    )
   } catch {
     return []
   }
 }
 
-function loadArchive(): ArchivedTask[] {
-  try {
-    const raw = localStorage.getItem(ARCHIVE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as ArchivedTask[]
-    if (!Array.isArray(parsed)) return []
-    return parsed
-  } catch {
-    return []
-  }
-}
-
-function persistTasks(tasks: Task[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
-}
-
-function persistArchive(archive: ArchivedTask[]) {
-  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive))
-}
-
-function reindexColumn(tasks: Task[], columnId: ColumnId) {
-  getColumnTasks(tasks, columnId).forEach((task, index) => {
-    const match = tasks.find((t) => t.id === task.id)
-    if (match) match.order = index
-  })
-}
-
-const initialState: KanbanState = {
-  tasks: loadTasks(),
-  archive: loadArchive(),
-  past: [],
-}
+export const kanbanStorageKey = STORAGE_KEY
 
 const kanbanSlice = createSlice({
   name: 'kanban',
-  initialState,
+  initialState: { tasks: loadTasks() },
   reducers: {
     addTask(state, action: PayloadAction<Task>) {
-      pushHistory(state)
+      if (!isValidDateOnly(action.payload.dueDate ?? '')) return
       state.tasks.push(action.payload)
       reindexColumn(state.tasks, action.payload.columnId)
-      persistTasks(state.tasks)
     },
     updateTask(state, action: PayloadAction<Partial<Task> & { id: string }>) {
-      pushHistory(state)
-      const index = state.tasks.findIndex((t) => t.id === action.payload.id)
-      if (index === -1) return
-      const { id: _, createdAt: __, ...updates } = action.payload
-      state.tasks[index] = {
-        ...state.tasks[index],
-        ...updates,
-        createdAt: state.tasks[index].createdAt,
+      const task = state.tasks.find(({ id }) => id === action.payload.id)
+      if (!task) return
+      const dueDate = action.payload.dueDate ?? task.dueDate
+      if (!isValidDateOnly(dueDate ?? '')) return
+      Object.assign(task, action.payload, {
+        id: task.id,
+        dueDate,
         updatedAt: new Date().toISOString(),
-      }
-      persistTasks(state.tasks)
+        createdAt: task.createdAt,
+      })
     },
     deleteTask(state, action: PayloadAction<string>) {
-      pushHistory(state)
-      const task = state.tasks.find((t) => t.id === action.payload)
+      const task = state.tasks.find(({ id }) => id === action.payload)
       if (!task) return
       const columnId = task.columnId
-      state.tasks = state.tasks.filter((t) => t.id !== action.payload)
+      state.tasks = state.tasks.filter(({ id }) => id !== action.payload)
       reindexColumn(state.tasks, columnId)
-      persistTasks(state.tasks)
     },
-    snapshotUndo(state) {
-      pushHistory(state)
+    restoreTask(state, action: PayloadAction<Task>) {
+      const task = action.payload
+      if (state.tasks.some(({ id }) => id === task.id)) return
+      state.tasks
+        .filter((item) => item.columnId === task.columnId && item.order >= task.order)
+        .forEach((item) => { item.order += 1 })
+      state.tasks.push({ ...task })
+      reindexColumn(state.tasks, task.columnId)
     },
     moveAndReorder(
       state,
@@ -129,78 +73,24 @@ const kanbanSlice = createSlice({
         taskId: string
         toColumnId: ColumnId
         toIndex: number
-        recordHistory?: boolean
       }>,
     ) {
-      if (action.payload.recordHistory !== false) {
-        pushHistory(state)
-      }
       const { taskId, toColumnId, toIndex } = action.payload
-      const task = state.tasks.find((t) => t.id === taskId)
-      if (!task) return
-
-      const fromColumnId = task.columnId
-      task.columnId = toColumnId
-      task.updatedAt = new Date().toISOString()
-
-      if (fromColumnId !== toColumnId) {
-        reindexColumn(state.tasks, fromColumnId)
-      }
-
-      const targetTasks = getColumnTasks(state.tasks, toColumnId).filter(
-        (t) => t.id !== taskId,
-      )
-      const clampedIndex = Math.max(0, Math.min(toIndex, targetTasks.length))
-      targetTasks.splice(clampedIndex, 0, task)
-      targetTasks.forEach((t, index) => {
-        const match = state.tasks.find((x) => x.id === t.id)
-        if (match) match.order = index
-      })
-
-      persistTasks(state.tasks)
-    },
-    archiveDoneTasks(state) {
-      pushHistory(state)
-      const doneTasks = getColumnTasks(state.tasks, 'done')
-      if (doneTasks.length === 0) return
-
-      const now = new Date().toISOString()
-      const archived = doneTasks.map((task) => ({
-        ...task,
-        archivedAt: now,
-      }))
-
-      state.archive = [...archived, ...state.archive]
-      state.tasks = state.tasks.filter((t) => t.columnId !== 'done')
-      persistTasks(state.tasks)
-      persistArchive(state.archive)
-    },
-    importBackup(state, action: PayloadAction<BackupData>) {
-      state.past = []
-      state.tasks = normalizeTasks(action.payload.tasks)
-      state.archive = action.payload.archive
-      persistTasks(state.tasks)
-      persistArchive(state.archive)
-    },
-    undo(state) {
-      const previous = state.past.pop()
-      if (!previous) return
-      state.tasks = previous.tasks
-      state.archive = previous.archive
-      persistTasks(state.tasks)
-      persistArchive(state.archive)
+      const reordered = moveTask(state.tasks, taskId, toColumnId, toIndex)
+      if (reordered === state.tasks) return
+      const moved = reordered.find(({ id }) => id === taskId)
+      if (moved) moved.updatedAt = new Date().toISOString()
+      state.tasks = reordered
     },
   },
 })
 
-export const {
-  addTask,
-  updateTask,
-  deleteTask,
-  snapshotUndo,
-  moveAndReorder,
-  archiveDoneTasks,
-  importBackup,
-  undo,
-} = kanbanSlice.actions
+function reindexColumn(tasks: Task[], columnId: ColumnId) {
+  getColumnTasks(tasks, columnId).forEach((task, order) => {
+    task.order = order
+  })
+}
+
+export const { addTask, updateTask, deleteTask, restoreTask, moveAndReorder } =
+  kanbanSlice.actions
 export default kanbanSlice.reducer

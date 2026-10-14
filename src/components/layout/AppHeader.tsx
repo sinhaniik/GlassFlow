@@ -1,42 +1,40 @@
-import { useAppSelector } from '../../app/hooks'
-import type { BoardFilters } from '../../features/kanban/filters'
-import { BackupControls } from '../ui/BackupControls'
-import { DaySummary } from '../ui/DaySummary'
-import { HeaderSearch } from '../ui/HeaderSearch'
-import { ThemeToggle } from '../ui/ThemeToggle'
-
 interface AppHeaderProps {
-  boardFilters: BoardFilters
-  onBoardFiltersChange: (filters: BoardFilters) => void
+  onCreateTask: () => void
+  onSearch: () => void
+  searchOpen: boolean
+  query: string
+  onQueryChange: (query: string) => void
+  onCloseSearch: () => void
 }
 
-export function AppHeader({
-  boardFilters,
-  onBoardFiltersChange,
-}: AppHeaderProps) {
-  const tasks = useAppSelector((state) => state.kanban.tasks)
-
+export function AppHeader({ onCreateTask, onSearch, searchOpen, query, onQueryChange, onCloseSearch }: AppHeaderProps) {
   return (
-    <header className="app-header glass-header mx-3 mt-3 shrink-0 rounded-2xl p-4 sm:mx-4 sm:mt-4 sm:rounded-3xl sm:p-5 lg:mx-auto lg:w-full lg:max-w-[87.5rem]">
-      <div className="flex items-start justify-between gap-3 sm:gap-4">
-        <div className="app-header__brand min-w-0">
-          <h1 className="app-header__title">GlassFlow</h1>
-          <p className="app-header__tagline">Your daily work board</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <HeaderSearch
-            query={boardFilters.query}
-            onQueryChange={(query) =>
-              onBoardFiltersChange({ ...boardFilters, query })
-            }
-          />
-          <BackupControls />
-          <ThemeToggle />
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <DaySummary tasks={tasks} />
+    <header className="app-header">
+      <a className="brand" href="#board" aria-label="GlassFlow home">
+        <span className="brand-mark" aria-hidden="true">G</span>
+        <span>GlassFlow</span>
+      </a>
+      <div className="header-actions">
+        {searchOpen ? (
+          <div className="header-search">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m13 13 4 4" /></svg>
+            <input autoFocus type="search" aria-label="Search tasks" placeholder="Search tasks" value={query} onChange={(event) => onQueryChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') onCloseSearch() }} />
+            <button type="button" aria-label="Close search" onClick={onCloseSearch}>Esc</button>
+          </div>
+        ) : (
+          <button type="button" className="icon-button header-search-button" aria-label="Search tasks" onClick={onSearch}>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m13 13 4 4" /></svg>
+          </button>
+        )}
+        <button
+          type="button"
+          className="primary-button new-task-button"
+          aria-label="New task"
+          onClick={onCreateTask}
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>
+          <span className="new-task-label">New task</span>
+        </button>
       </div>
     </header>
   )

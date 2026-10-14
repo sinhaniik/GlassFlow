@@ -1,59 +1,32 @@
 import { useEffect } from 'react'
 
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  const tag = target.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable
-}
-
-interface KeyboardShortcutOptions {
-  onNewTask: () => void
-  onEscape: () => void
-  onDelete?: () => void
-  onUndo?: () => void
-  canUndo?: boolean
-  disabled?: boolean
-}
-
 export function useKeyboardShortcuts({
   onNewTask,
-  onEscape,
-  onDelete,
-  onUndo,
-  canUndo = false,
-  disabled = false,
-}: KeyboardShortcutOptions) {
+  onSearch,
+  onShowHelp,
+}: {
+  onNewTask: () => void
+  onSearch: () => void
+  onShowHelp: () => void
+}) {
   useEffect(() => {
-    if (disabled) return
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (isTypingTarget(e.target)) return
-
-      if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault()
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target
+      if (!(target instanceof HTMLElement) || target.isContentEditable) return
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (event.key === '/') {
+        event.preventDefault()
+        onSearch()
+      } else if (event.key === '?') {
+        event.preventDefault()
+        onShowHelp()
+      } else if (event.key.toLowerCase() === 'n') {
+        event.preventDefault()
         onNewTask()
-        return
-      }
-
-      if (e.key === 'Escape') {
-        onEscape()
-        return
-      }
-
-      if (e.key === 'Delete' && onDelete) {
-        e.preventDefault()
-        onDelete()
-        return
-      }
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && onUndo) {
-        if (!canUndo) return
-        e.preventDefault()
-        onUndo()
       }
     }
-
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onNewTask, onEscape, onDelete, onUndo, canUndo, disabled])
+  }, [onNewTask, onSearch, onShowHelp])
 }

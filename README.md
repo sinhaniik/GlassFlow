@@ -1,73 +1,29 @@
-# React + TypeScript + Vite
+# GlassFlow
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A small, local-first Kanban board built with React, TypeScript, Redux Toolkit, and Vite.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Use the board
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- Select **New task** or press `N` to create a task.
+- Select a card to edit its title, notes, priority, required deadline, or status.
+- Drag any part of a card to reorder or move it; on touch, press and hold first. Keyboard users can focus the move control and press `Space`, then use arrow keys. `Option`/`Alt` plus arrow keys also reorders or changes columns. Hold `Shift` while dragging over text to select it.
+- Change status from the task editor. GlassFlow uses one dark appearance.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Tasks persist in local storage under `glassflow-kanban`. Existing task IDs, ordering, and older task fields are retained when loaded. Older tasks without a valid deadline remain on the board with a **Deadline needed** label; open each card and set a deadline before saving. No date is fabricated during migration. The board works offline and needs no account.
+
+## Verify and deploy
+
+```sh
+npm run build
+npm run lint
+npm run build:pages
 ```
+
+`build:pages` creates the GitHub Pages site in `docs/`.

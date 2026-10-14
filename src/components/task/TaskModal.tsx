@@ -1,318 +1,248 @@
-import { useEffect, useRef, useState } from 'react'
-import { useAppDispatch, useAppSelector } from '../../app/hooks'
-import { deleteTask, updateTask } from '../../features/kanban/kanbanSlice'
-import type {
-  AccentColor,
-  TaskAttachment,
-  TaskComment,
-  TaskPriority,
-  TaskSubtask,
-} from '../../features/kanban/types'
-import { AccentPicker } from '../ui/AccentPicker'
-import { ConfirmDialog } from '../ui/ConfirmDialog'
-import { LabelPicker } from '../ui/LabelPicker'
-import { PriorityPicker } from '../ui/PriorityPicker'
-import { TaskAttachmentsField } from './TaskAttachmentsField'
-import { TaskCommentsField } from './TaskCommentsField'
-import { TaskSubtasksField } from './TaskSubtasksField'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import type { ColumnId, Task, TaskPriority } from '../../features/kanban/types'
+import { DEFAULT_COLUMNS } from '../../features/kanban/types'
+import { isValidDateOnly } from '../../features/kanban/utils'
 
 interface TaskModalProps {
-  taskId: string | null
+  task: Task
+  isNew: boolean
   onClose: () => void
-  onRequestDelete?: () => void
+  onSave: (task: Task) => void
+  onMove: (columnId: ColumnId) => void
+  onDelete: () => void
 }
 
-export function TaskModal({ taskId, onClose, onRequestDelete }: TaskModalProps) {
-  const dispatch = useAppDispatch()
-  const task = useAppSelector((state) =>
-    state.kanban.tasks.find((t) => t.id === taskId),
-  )
+const statusLabels: Record<ColumnId, string> = {
+  todo: 'To do',
+  'in-progress': 'In progress',
+  done: 'Done',
+}
 
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [assignee, setAssignee] = useState('')
-  const [labels, setLabels] = useState<string[]>([])
-  const [attachments, setAttachments] = useState<TaskAttachment[]>([])
-  const [comments, setComments] = useState<TaskComment[]>([])
-  const [subtasks, setSubtasks] = useState<TaskSubtask[]>([])
-  const [accent, setAccent] = useState<AccentColor>('pink')
-  const [priority, setPriority] = useState<TaskPriority>('low')
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+const priorityOptions: { id: TaskPriority; label: string }[] = [
+  { id: 'low', label: 'Low' },
+  { id: 'medium', label: 'Med' },
+  { id: 'high', label: 'High' },
+]
+
+export function TaskModal({ task, isNew, onClose, onSave, onMove, onDelete }: TaskModalProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
+  const closeTimerRef = useRef<number | null>(null)
+  const [title, setTitle] = useState(task.title)
+  const [description, setDescription] = useState(task.description ?? '')
+  const [dueDate, setDueDate] = useState(task.dueDate ?? '')
+  const [priority, setPriority] = useState<TaskPriority>(task.priority)
+  const [error, setError] = useState('')
+  const [errorField, setErrorField] = useState<'title' | 'deadline' | null>(null)
+  const [visible, setVisible] = useState(false)
+  const [closing, setClosing] = useState(false)
+  const dirty = title !== task.title || description !== (task.description ?? '') ||
+    dueDate !== (task.dueDate ?? '') || priority !== task.priority
+  const canSave = Boolean(title.trim()) && isValidDateOnly(dueDate) && dirty
 
   useEffect(() => {
-    if (!task) return
-    setTitle(task.title)
-    setDescription(task.description ?? '')
-    setDueDate(task.dueDate ?? '')
-    setAssignee(task.assignee ?? '')
-    setLabels(task.labels ?? [])
-    setAttachments(task.attachments ?? [])
-    setComments(task.comments ?? [])
-    setSubtasks(task.subtasks ?? [])
-    setAccent(task.accent)
-    setPriority(task.priority ?? 'low')
-    setShowDeleteConfirm(false)
-    requestAnimationFrame(() => titleRef.current?.focus())
-  }, [task])
-
-  useEffect(() => {
-    if (!taskId) return
-
-    const previousOverflow = document.body.style.overflow
-    document.body.classList.add('modal-open')
-    document.body.style.overflow = 'hidden'
-
+    const dialog = dialogRef.current
+    if (!dialog) return
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    dialog.showModal()
+    titleRef.current?.focus()
+    const frame = requestAnimationFrame(() => setVisible(true))
     return () => {
-      document.body.classList.remove('modal-open')
-      document.body.style.overflow = previousOverflow
-    }
-  }, [taskId])
-
-  useEffect(() => {
-    if (!taskId) return
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !showDeleteConfirm) {
-        onClose()
-        return
-      }
-      if (e.key === 'Delete' && !showDeleteConfirm) {
-        e.preventDefault()
-        if (onRequestDelete) {
-          onRequestDelete()
-        } else {
-          setShowDeleteConfirm(true)
+      cancelAnimationFrame(frame)
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current)
+      dialog.close()
+      requestAnimationFrame(() => {
+        const original = returnFocusRef.current
+        if (original?.isConnected) {
+          original.focus()
+          return
         }
-      }
+        const taskCard = Array.from(document.querySelectorAll<HTMLElement>('[data-task-id] .task-open'))
+          .find((element) => element.closest<HTMLElement>('[data-task-id]')?.dataset.taskId === task.id)
+        ;(taskCard ?? document.querySelector<HTMLElement>('.new-task-button'))?.focus()
+      })
     }
+  }, [task.id])
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [taskId, onClose, onRequestDelete, showDeleteConfirm])
-
-  if (!taskId || !task) return null
-
-  function handleSave() {
-    if (!task) return
-    const trimmed = title.trim()
-    if (!trimmed) return
-    dispatch(
-      updateTask({
-        id: task.id,
-        title: trimmed,
-        description: description.trim() || undefined,
-        dueDate: dueDate || undefined,
-        assignee: assignee.trim() || undefined,
-        labels: labels.length > 0 ? labels : undefined,
-        attachments,
-        comments,
-        subtasks,
-        accent,
-        priority,
-      }),
-    )
-    onClose()
+  function closeAfterFade(callback: () => void) {
+    if (closing) return
+    setClosing(true)
+    const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 120
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null
+      callback()
+    }, delay)
   }
 
-  function handleDelete() {
-    if (!task) return
-    dispatch(deleteTask(task.id))
-    setShowDeleteConfirm(false)
-    onClose()
+  function requestClose() {
+    if (closing) return
+    if (dirty && !window.confirm('Discard unsaved changes?')) return
+    closeAfterFade(onClose)
+  }
+
+  function changeStatus(columnId: ColumnId) {
+    if (closing || columnId === task.columnId) return
+    if (dirty && !window.confirm('Discard unsaved changes and move this task?')) return
+    closeAfterFade(() => onMove(columnId))
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (closing) return
+    const cleanTitle = title.trim()
+    if (!cleanTitle) {
+      setError('Enter a task title.')
+      setErrorField('title')
+      titleRef.current?.focus()
+      return
+    }
+    if (!isValidDateOnly(dueDate)) {
+      setError(dueDate ? 'Enter a valid deadline.' : 'Choose a deadline before saving.')
+      setErrorField('deadline')
+      document.getElementById('task-deadline')?.focus()
+      return
+    }
+    closeAfterFade(() => onSave({
+      ...task,
+      title: cleanTitle,
+      description: description.trim(),
+      dueDate,
+      priority,
+      updatedAt: new Date().toISOString(),
+    }))
+  }
+
+  function handleShortcut(event: KeyboardEvent<HTMLFormElement>) {
+    if (event.key !== 'Enter' || (!event.metaKey && !event.ctrlKey)) return
+    event.preventDefault()
+    event.currentTarget.requestSubmit()
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-        <button
-          type="button"
-          aria-label="Close"
-          className="modal-backdrop absolute inset-0"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-labelledby="task-modal-title"
-          className="modal-panel task-modal modal-enter relative flex w-full max-w-md flex-col rounded-t-2xl sm:max-h-[min(90dvh,44rem)] sm:rounded-2xl"
-        >
-          <header className="task-modal__header shrink-0 px-4 pb-3 pt-4 sm:px-6 sm:pt-6">
-            <h2
-              id="task-modal-title"
-              className="text-lg font-semibold text-text-primary"
-            >
-              Edit task
-            </h2>
-          </header>
+    <dialog
+      ref={dialogRef}
+      className={`task-dialog task-editor-dialog${visible ? ' is-visible' : ''}${closing ? ' is-closing' : ''}`}
+      aria-labelledby="task-dialog-title"
+      onCancel={(event) => {
+        event.preventDefault()
+        requestClose()
+      }}
+      onClick={(event) => {
+        if (event.target === dialogRef.current) requestClose()
+      }}
+    >
+      <form onSubmit={handleSubmit} onKeyDown={handleShortcut} noValidate>
+        <header className="dialog-header">
+          <div>
+            <p className="eyebrow">Task details</p>
+            <h2 id="task-dialog-title">{isNew ? 'New task' : 'Edit task'}</h2>
+          </div>
+          <button type="button" className="icon-button dialog-close" aria-label="Close editor" onClick={requestClose}>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+          </button>
+        </header>
 
-          <div className="task-modal__body min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
-            <label className="block">
-              <span className="modal-field-label">
-                Title
-              </span>
-              <input
-                ref={titleRef}
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSave()
-                }}
-                className="glass-input w-full rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none transition"
-              />
-            </label>
+        <div className="dialog-fields">
+          <label className="field-group" htmlFor="task-title">
+            <span className="field-heading">Title <span className="field-requirement">Required</span></span>
+            <input
+              ref={titleRef}
+              id="task-title"
+              className="text-input"
+              value={title}
+              maxLength={160}
+              required
+              aria-describedby={errorField === 'title' ? 'task-title-error' : undefined}
+              aria-invalid={errorField === 'title'}
+              onChange={(event) => { setTitle(event.target.value); setError(''); setErrorField(null) }}
+              placeholder="What needs to get done?"
+            />
+            {errorField === 'title' && <span id="task-title-error" className="field-error">{error}</span>}
+          </label>
 
-            <label className="block">
-              <span className="modal-field-label">
-                Description
-                <span className="font-normal text-text-secondary"> (optional)</span>
-              </span>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                placeholder="Add notes or details…"
-                className="glass-input w-full resize-none rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition"
-              />
-            </label>
+          <label className="field-group" htmlFor="task-description">
+            <span className="field-heading">Notes <span className="field-requirement">Optional</span></span>
+            <textarea
+              id="task-description"
+              className="text-input text-area"
+              value={description}
+              maxLength={2000}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Add a little context"
+              rows={3}
+            />
+          </label>
 
-            <div>
-              <span className="modal-field-label">
-                Priority
-              </span>
-              <PriorityPicker value={priority} onChange={setPriority} />
-            </div>
-
-            <div>
-              <span className="modal-field-label">
-                Labels
-                <span className="font-normal text-text-secondary"> (optional)</span>
-              </span>
-              <LabelPicker value={labels} onChange={setLabels} />
-            </div>
-
-            <label className="block">
-              <span className="modal-field-label">
-                Due date
-                <span className="font-normal text-text-secondary"> (optional)</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="glass-input flex-1 rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none transition"
-                />
-                {dueDate && (
+          <div className="field-row">
+            <fieldset className="field-group fieldset-reset">
+              <legend className="field-heading">Priority</legend>
+              <div className="segmented-control priority-segments" role="radiogroup" aria-label="Priority">
+                {priorityOptions.map((option) => (
                   <button
+                    key={option.id}
                     type="button"
-                    onClick={() => setDueDate('')}
-                    className="glass-subtle shrink-0 rounded-xl px-3 py-2.5 text-xs font-medium text-text-secondary transition hover:text-text-primary"
+                    role="radio"
+                    aria-checked={priority === option.id}
+                    className={`segment priority-segment${priority === option.id ? ' is-selected' : ''}`}
+                    onClick={() => setPriority(option.id)}
                   >
-                    Clear
+                    <span className={`priority-dot priority-dot-${option.id}`} aria-hidden="true" />
+                    {option.label}
                   </button>
-                )}
+                ))}
               </div>
-            </label>
+            </fieldset>
 
-            <label className="block">
-              <span className="modal-field-label">
-                Assignee
-                <span className="font-normal text-text-secondary"> (optional)</span>
-              </span>
+            <label className="field-group" htmlFor="task-deadline">
+              <span className="field-heading">Deadline <span className="field-requirement">Required</span></span>
               <input
-                type="text"
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                placeholder="Who owns this task?"
-                className="glass-input w-full rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary outline-none transition"
+                id="task-deadline"
+                className="text-input date-input"
+                type="date"
+                value={dueDate}
+                required
+                aria-describedby={errorField === 'deadline' ? 'task-deadline-error' : undefined}
+                aria-invalid={errorField === 'deadline'}
+                onChange={(event) => { setDueDate(event.target.value); setError(''); setErrorField(null) }}
               />
+              {errorField === 'deadline' && <span id="task-deadline-error" className="field-error">{error}</span>}
             </label>
-
-            <div>
-              <span className="modal-field-label">
-                Subtasks
-                <span className="font-normal text-text-secondary">
-                  {' '}
-                  (break work into steps)
-                </span>
-              </span>
-              <TaskSubtasksField value={subtasks} onChange={setSubtasks} />
-            </div>
-
-            <div>
-              <span className="modal-field-label">
-                Attachments
-                <span className="font-normal text-text-secondary">
-                  {' '}
-                  (links to docs, blogs, etc.)
-                </span>
-              </span>
-              <TaskAttachmentsField
-                value={attachments}
-                onChange={setAttachments}
-              />
-            </div>
-
-            <div>
-              <span className="modal-field-label">
-                Comments
-                <span className="font-normal text-text-secondary">
-                  {' '}
-                  (status updates, bug notes)
-                </span>
-              </span>
-              <TaskCommentsField value={comments} onChange={setComments} />
-            </div>
-
-            <div>
-              <span className="modal-field-label">
-                Accent color
-              </span>
-              <AccentPicker value={accent} onChange={setAccent} />
-            </div>
           </div>
 
-          <footer className="task-modal__footer shrink-0 border-t border-[color-mix(in_srgb,var(--glass-border)_55%,transparent)] px-4 py-4 sm:px-6">
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="text-sm font-medium text-text-secondary transition hover:text-text-primary"
-            >
-              Delete task
-            </button>
-            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="glass-subtle rounded-xl px-4 py-2 text-sm font-medium text-text-primary transition hover:opacity-80"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={!title.trim()}
-                className="rounded-xl bg-accent-purple px-4 py-2 text-sm font-medium text-text-primary transition hover:opacity-90 disabled:opacity-40"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-          </footer>
+          {!isNew && (
+            <fieldset className="field-group fieldset-reset">
+              <legend className="field-heading">Status</legend>
+              <div className="segmented-control status-segments" role="group" aria-label="Change task status">
+                {DEFAULT_COLUMNS.map((column) => (
+                  <button
+                    key={column.id}
+                    type="button"
+                    aria-pressed={task.columnId === column.id}
+                    className={`segment status-segment${task.columnId === column.id ? ' is-selected' : ''}`}
+                    onClick={() => changeStatus(column.id)}
+                    disabled={task.columnId === column.id || closing}
+                  >
+                    {statusLabels[column.id]}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
         </div>
-      </div>
 
-      {showDeleteConfirm && (
-        <ConfirmDialog
-          title="Delete task?"
-          message={`"${task.title}" will be permanently removed.`}
-          onConfirm={handleDelete}
-          onCancel={() => setShowDeleteConfirm(false)}
-        />
-      )}
-    </>
+        <footer className="dialog-footer">
+          {!isNew && <button type="button" className="text-button destructive" onClick={() => {
+            if (window.confirm(`Delete “${task.title}”? You can undo this for 5 seconds.`)) closeAfterFade(onDelete)
+          }} disabled={closing}>Delete task</button>}
+          <div className="dialog-actions">
+            <button type="button" className="text-button" onClick={requestClose} disabled={closing}>Cancel</button>
+            <button type="submit" className="primary-button" disabled={!canSave || closing}>
+              {isNew ? 'Create task' : 'Save changes'}
+            </button>
+          </div>
+        </footer>
+      </form>
+    </dialog>
   )
 }
